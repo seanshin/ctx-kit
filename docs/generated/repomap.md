@@ -1,4 +1,4 @@
-<!-- ctxkit:v1 repomap generated=2026-09-07T08:59:56.172Z budget=8000 -->
+<!-- ctxkit:v1 repomap generated=2026-09-07T09:07:32.788Z budget=8000 -->
 # Repository Map
 
 Files: 44 source files scanned. Ranked by cross-file references.
@@ -79,6 +79,16 @@ Files: 44 source files scanned. Ranked by cross-file references.
 - L25 function `visit`
 - L57 function `readText(root: string, rel: string)`
 
+## src/core/retrieve.ts
+- L30 function `splitCompoundWord(word: string)`
+- L75 function `undoubleFinal(s: string)`
+- L94 function `foldStrippedSuffix(original: string, bare: string)`
+- L115 function `stem(token: string)`
+- L163 function `tokenize(text: string)`
+- L182 interface `Bm25Doc`
+- L187 interface `Bm25Options`
+- L206 function `bm25(docs: Bm25Doc[], queryTerms: string[], opts: Bm25Options = {})`
+
 ## src/core/select.ts
 - L17 interface `SelectOptions`
 - L26 interface `Selection`
@@ -143,13 +153,6 @@ Files: 44 source files scanned. Ranked by cross-file references.
 ## src/core/check.ts
 - L16 function `runChecks(config: CtxConfig, opts: CheckOptions = {})`
 
-## src/core/retrieve.ts
-- L30 function `splitCompoundWord(word: string)`
-- L54 function `tokenize(text: string)`
-- L73 interface `Bm25Doc`
-- L78 interface `Bm25Options`
-- L97 function `bm25(docs: Bm25Doc[], queryTerms: string[], opts: Bm25Options = {})`
-
 ## src/core/sync.ts
 - L20 const `SYNC_TARGETS`
 - L32 function `expectedContent(agents: string)`
@@ -212,12 +215,12 @@ Files: 44 source files scanned. Ranked by cross-file references.
 - L40 function `countMatches(haystack: string, needle: string)`
 - L52 function `getContext(config: CtxConfig, query: string, opts: GetOptions = {})`
 
-## test/about.test.mjs
-- L17 function `makeRepo(files = {})`
-
 ## test/eval.test.mjs
 - L17 function `makeRepo(files = {})`
 - L33 function `writeTasks(root, yaml)`
+
+## test/about.test.mjs
+- L17 function `makeRepo(files = {})`
 
 ## src/checks/health.ts
 - L26 function `isEntryPoint(rel: string)`
