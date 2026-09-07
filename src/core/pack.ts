@@ -13,7 +13,7 @@ import { buildRepoMap, rankFiles, type Scorer } from "./repomap.js";
 import { moduleFiles, select } from "./select.js";
 import { approxTokens } from "./tokens.js";
 import { makeQueryScorer } from "../scorers/query.js";
-import { coChangeSeeds, makeCoChangeScorer } from "../scorers/cochange.js";
+import { coChangeOutsideModule, coChangeSeeds, makeCoChangeScorer } from "../scorers/cochange.js";
 
 export interface PackOptions {
   profile: string;
@@ -34,6 +34,14 @@ export interface PackResult {
 /** Size of the cross-module orientation index inside a module pack's map. */
 const ELSEWHERE_FILES = 20;
 const ELSEWHERE_TOKENS = 300;
+/**
+ * Co-change reach beyond the module (plan §4.7 problem: a re-rank can only
+ * ever surface files already in the candidate pool, so a module pack could
+ * never point at a file it doesn't contain). A handful, not twenty — this
+ * rides inside the same `ELSEWHERE_TOKENS` allowance as the reference-based
+ * list above, so it stays small on purpose.
+ */
+const COCHANGE_ELSEWHERE_FILES = 5;
 
 const LANG_BY_EXT: Record<string, string> = {
   ".ts": "ts", ".tsx": "tsx", ".js": "js", ".jsx": "jsx", ".py": "python",
@@ -155,6 +163,28 @@ export function buildPack(config: CtxConfig, opts: PackOptions): PackResult {
             map +=
               `\n### Elsewhere in the repository (most referenced; ask ` +
               `search_symbol or read them directly)\n${elsewhere.join("\n")}\n`;
+          }
+          // Co-change reach (plan §4.7): files outside the module that
+          // change together with it in git history. The canonical case is a
+          // model and the migration that creates its table, which share no
+          // text at all; verified on a real repository (see report) that a
+          // file with genuinely zero textual overlap can still be the
+          // strongest hit. Worded as "not in the list above" rather than "no
+          // static reference exists" — measured on that same repository, a
+          // caller that imports the module heavily can co-change its way in
+          // here too, precisely because the list above ranks *global*
+          // reference centrality, not reference density with this module.
+          // Silently absent when co-change is off, unavailable (shallow
+          // history), or finds nothing outside the module.
+          if (config.ranking.cochange) {
+            const cochange = coChangeOutsideModule(config, own, [...own], COCHANGE_ELSEWHERE_FILES).map(
+              (e) => `- ${e.rel}`,
+            );
+            if (cochange.length > 0) {
+              map +=
+                `\n### Changes together with this module (git history; not ` +
+                `in the list above)\n${cochange.join("\n")}\n`;
+            }
           }
         } else {
           const cached = join(config.root, GENERATED_DIR, "repomap.md");

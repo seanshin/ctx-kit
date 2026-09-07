@@ -17,7 +17,8 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
-import { GENERATED_DIR, type CtxConfig } from "../core/config.js";
+import picomatch from "picomatch";
+import { BUILTIN_IGNORE_DIRS, GENERATED_DIR, type CtxConfig } from "../core/config.js";
 import { isRepo, logCommits } from "../core/git.js";
 import { rankFiles, type Scorer } from "../core/repomap.js";
 import type { Selection } from "../core/select.js";
@@ -172,6 +173,57 @@ export function makeCoChangeScorer(seeds: string[]): Scorer {
     for (const [f, v] of raw) out.set(f, (v / max) * GAMMA);
     return out;
   };
+}
+
+/**
+ * Git history has no notion of "ignored" — bot-maintained bookkeeping files
+ * (a `.bkit/` agent-state file, a `docs/.pdca-status.json` progress log)
+ * that get rewritten on nearly every commit will otherwise swamp a genuine
+ * co-change signal with noise no reference-based list would ever surface
+ * either, since `rankFiles`/`walkFiles` already skip dot-segments and
+ * `BUILTIN_IGNORE_DIRS` (found on a real repository — see verification).
+ * Keeps the co-change reach list inside the same universe of "real" files
+ * the rest of the map already draws from.
+ */
+function isIgnoredPath(rel: string): boolean {
+  return rel.split("/").some((seg) => seg.startsWith(".") || BUILTIN_IGNORE_DIRS.has(seg));
+}
+
+/**
+ * Files *outside* a module that co-change strongly with it — the case the
+ * ordinary seed-relative scorer above can never surface, because a module
+ * pack's candidate pool is the module's own files (a re-rank can only
+ * reorder what is already in the pool). The canonical example is a database
+ * model and the migration that creates its table: they share no text, so
+ * static reference ranking can never connect them, but they change together
+ * in git history. Paths + raw co-change sum, ranked strongest first, capped
+ * to `limit`. `own` (the module's own files) is excluded — those already
+ * have their own section — and so is anything matching `config.exclude`,
+ * which is the user's explicit instruction and must never be overridden by
+ * a ranking signal, and anything no longer present in the working tree
+ * (nothing to read). Empty whenever co-change itself would be: no seeds, no
+ * git history, too little of it, or no co-changing files found at all.
+ */
+export function coChangeOutsideModule(
+  config: CtxConfig,
+  own: ReadonlySet<string>,
+  seeds: string[],
+  limit: number,
+): { rel: string; score: number }[] {
+  if (seeds.length === 0) return [];
+  if (!coChangeAvailable(config.root)) return [];
+  const commits = filteredCommits(config.root, config.ranking.commits);
+  const sums = seedColumnSums(seeds, commits);
+  if (sums.size === 0) return [];
+  const isExcluded = config.exclude.length > 0 ? picomatch(config.exclude, { dot: true }) : null;
+  return [...sums.entries()]
+    .filter(([f]) => !own.has(f))
+    .filter(([f]) => !isExcluded?.(f))
+    .filter(([f]) => !isIgnoredPath(f))
+    .filter(([f]) => existsSync(join(config.root, f)))
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([rel, score]) => ({ rel, score }));
 }
 
 /**
