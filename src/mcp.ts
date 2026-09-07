@@ -76,16 +76,20 @@ export async function startMcpServer(rootDir: string): Promise<void> {
       inputSchema: {
         module: z.string().min(1).describe("module name from context.config.yaml"),
         profile: z.string().optional().describe("consumption profile (default: light)"),
+        about: z
+          .string()
+          .optional()
+          .describe("task description; ranks the module's files by relevance (planned: 0.4.0)"),
       },
     },
-    async ({ module, profile }) => {
+    async ({ module, profile, about }) => {
       const parts: string[] = [];
       const docPath = join(config.root, "docs/context", `${module}.md`);
       if (existsSync(docPath)) {
         parts.push(`<!-- docs/context/${module}.md -->\n${readFileSync(docPath, "utf8").trim()}`);
       }
       try {
-        const pack = buildPack(config, { profile: profile ?? "light", module });
+        const pack = buildPack(config, { profile: profile ?? "light", module, about });
         parts.push(pack.content);
       } catch (err) {
         return text(err instanceof Error ? err.message : String(err));
@@ -140,15 +144,20 @@ export async function startMcpServer(rootDir: string): Promise<void> {
     "make_pack",
     {
       description:
-        "Assemble a profile-aware context pack file (rules + repomap + target files within a token budget) and return its path — for handing context to another, weaker model.",
+        "Assemble a profile-aware context pack file (rules + repomap + target files within a token budget) and return its path — for handing context to another, weaker model. Pass `about` so the pack is shaped for the task you are handing over.",
       inputSchema: {
         profile: z.string().optional().describe("consumption profile (default: light)"),
         module: z.string().optional().describe("restrict to one module from context.config.yaml"),
+        about: z.string().optional().describe("task description; ranks files by relevance (planned: 0.4.0)"),
+        diff: z
+          .string()
+          .optional()
+          .describe("git revision range or '--staged'; centers the pack on changes (planned: 0.4.0)"),
       },
     },
-    async ({ profile, module }) => {
+    async ({ profile, module, about, diff }) => {
       try {
-        const pack = buildPack(config, { profile: profile ?? "light", module });
+        const pack = buildPack(config, { profile: profile ?? "light", module, about, diff });
         const full = join(config.root, pack.relOutPath);
         mkdirSync(dirname(full), { recursive: true });
         writeFileSync(full, pack.content);

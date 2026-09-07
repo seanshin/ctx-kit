@@ -118,9 +118,15 @@ program
   .description(`assemble a profile-aware context pack -> ${GENERATED_DIR}/packs/`)
   .option("-p, --profile <name>", "consumption profile", "light")
   .option("-m, --module <name>", "restrict to a module defined in the config")
+  .option("-a, --about <query>", "rank files by relevance to this task (planned: 0.4.0)")
+  .option("-d, --diff <range>", "center the pack on changed files; range or --staged (planned: 0.4.0)")
+  .option("--explain", "print the score breakdown for the top files (planned: 0.4.0)")
   .option("--repomix", "delegate packing to the external Repomix CLI if installed")
   .option("--stdout", "print to stdout instead of writing the file")
-  .action((opts: { profile: string; module?: string; repomix?: boolean; stdout?: boolean }) => {
+  .action((opts: {
+    profile: string; module?: string; about?: string; diff?: string;
+    explain?: boolean; repomix?: boolean; stdout?: boolean;
+  }) => {
     const config = loadConfig(rootDir());
     if (opts.repomix) {
       if (!repomixAvailable()) {
@@ -132,7 +138,17 @@ program
         console.error("repomix failed — falling back to the internal packer");
       }
     }
-    const pack = buildPack(config, { profile: opts.profile, module: opts.module });
+    if (opts.explain) {
+      console.error("pack --explain is planned for 0.4.0 (docs/plan-v2.md §4.4)");
+      process.exitCode = 1;
+      return;
+    }
+    const pack = buildPack(config, {
+      profile: opts.profile,
+      module: opts.module,
+      about: opts.about,
+      diff: opts.diff,
+    });
     writeOutput(config.root, pack.relOutPath, pack.content, opts.stdout ?? false);
     if (!opts.stdout) console.log(`~${pack.tokens} tokens (budget ${config.profiles[opts.profile].budget})`);
   });
@@ -162,9 +178,21 @@ program
   .command("check")
   .description("CI gate: rule length, sync freshness, repomap staleness, secret scan")
   .option("--max-rule-lines <n>", "maximum AGENTS.md line count", "150")
-  .action((opts: { maxRuleLines: string }) => {
+  .option("--run-commands", "also run the commands documented in AGENTS.md — trusted repositories only (planned: 0.3.1)")
+  .option("--update-baseline", "record current violations so only new ones fail (planned: 0.3.1)")
+  .option("--no-baseline", "report every violation, ignoring the recorded baseline (planned: 0.3.1)")
+  .action((opts: { maxRuleLines: string; runCommands?: boolean; updateBaseline?: boolean; baseline?: boolean }) => {
     const config = loadConfig(rootDir());
-    const results = runChecks(config, { maxRuleLines: Number(opts.maxRuleLines) });
+    if (opts.updateBaseline) {
+      console.error("check --update-baseline is planned for 0.3.1 (docs/plan-v2.md §4.2)");
+      process.exitCode = 1;
+      return;
+    }
+    const results = runChecks(config, {
+      maxRuleLines: Number(opts.maxRuleLines),
+      runCommands: opts.runCommands,
+      noBaseline: opts.baseline === false,
+    });
     const icon = { ok: "✓", warn: "!", fail: "✗" } as const;
     for (const r of results) console.log(`${icon[r.level]} [${r.name}] ${r.detail}`);
     const fails = results.filter((r) => r.level === "fail").length;
@@ -188,6 +216,26 @@ program
         maxSections: Number(opts.maxSections),
       }),
     );
+  });
+
+program
+  .command("eval")
+  .description("(planned: 0.3.0 — measure context profiles against a task file)")
+  .option("--init", "write a tasks.yaml template")
+  .option("--tasks <file>", "task definitions")
+  .option("--dry-run", "inclusion rates only, without calling any model (free)")
+  .option("--profiles <list>", "comma-separated profiles")
+  .option("--models <list>", "comma-separated model names")
+  .option("--custom <spec>", "extra model as name=command")
+  .option("-m, --module <name>", "restrict packs to a module")
+  .option("--out <file>", "results file")
+  .option("--yes", "skip the model-call confirmation")
+  .action(() => {
+    console.error(
+      "ctxkit eval is planned for 0.3.0 (docs/plan-v2.md §4.1).\n" +
+        "Until then use the bundled harness: node eval/run.mjs --help",
+    );
+    process.exitCode = 1;
   });
 
 program

@@ -13,6 +13,45 @@ export interface ProfileConfig {
   budget: number;
 }
 
+/** Severity a check reports at. */
+export type Level = "ok" | "warn" | "fail" | "info";
+
+/**
+ * A machine-checkable rule from AGENTS.md. Exactly one of the three shapes
+ * is used per entry; see docs/plan-v2.md §4.2.
+ */
+export interface Constraint {
+  id: string;
+  /** symbol form: this symbol may only be defined in these paths. */
+  symbol?: string;
+  only_in?: string[];
+  /** import form: files under `from` may not import anything under it. */
+  from?: string[];
+  must_not_import?: string[];
+  /** pattern form: this regex may not appear under `in`. */
+  forbid_pattern?: string;
+  in?: string[];
+}
+
+/** Drift signals, each at a configurable severity. */
+export interface HealthConfig {
+  duplicates: Level;
+  orphans: Level;
+  coverage: Level;
+  /** Globs never reported as orphans (generated code, plugins, …). */
+  orphan_ignore: string[];
+}
+
+/** Knobs for how files are scored. */
+export interface RankingConfig {
+  /** Weight git co-change against the seed set (docs/plan-v2.md §4.7). */
+  cochange: boolean;
+  /** Commits scanned for co-change. */
+  commits: number;
+  /** Weight of the query score in `--about` (docs/plan-v2.md §4.4). */
+  query_weight: number;
+}
+
 export interface CtxConfig {
   version: number;
   /** Absolute path of the target repository root. */
@@ -23,7 +62,27 @@ export interface CtxConfig {
   /** Glob patterns excluded from all scans, in addition to built-in ignores. */
   exclude: string[];
   sync?: { targets?: string[] };
+  /** Machine-checkable rules; empty means the constraint check is skipped. */
+  constraints: Constraint[];
+  health: HealthConfig;
+  ranking: RankingConfig;
 }
+
+export const DEFAULT_HEALTH: HealthConfig = {
+  duplicates: "warn",
+  orphans: "warn",
+  coverage: "info",
+  orphan_ignore: [],
+};
+
+export const DEFAULT_RANKING: RankingConfig = {
+  cochange: false,
+  commits: 500,
+  query_weight: 2,
+};
+
+/** Known violations recorded so only *new* ones fail (plan-v2 §4.2). */
+export const BASELINE_FILE = `${GENERATED_DIR}/baseline.json`;
 
 export const DEFAULT_PROFILES: Record<string, ProfileConfig> = {
   frontier: { inject: ["agents"], budget: 4000 },
@@ -77,5 +136,8 @@ export function loadConfig(rootDir: string): CtxConfig {
     profiles: { ...DEFAULT_PROFILES, ...(raw.profiles ?? {}) },
     exclude: raw.exclude ?? [],
     sync: raw.sync,
+    constraints: raw.constraints ?? [],
+    health: { ...DEFAULT_HEALTH, ...(raw.health ?? {}) },
+    ranking: { ...DEFAULT_RANKING, ...(raw.ranking ?? {}) },
   };
 }

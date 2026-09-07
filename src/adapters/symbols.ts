@@ -12,6 +12,13 @@ export interface CodeSymbol {
   name: string;
   signature: string;
   line: number;
+  /**
+   * Defined at column zero, i.e. not a method or a nested definition.
+   * Duplicate-implementation detection leans on this: without it, every
+   * `__init__` and every mock method looks like a duplicate (measured: it
+   * removes half the candidates — docs/plan-v2.md §4.2).
+   */
+  topLevel: boolean;
 }
 
 export const SOURCE_EXTENSIONS = new Set([
@@ -96,6 +103,7 @@ export function extractSymbols(relPath: string, content: string): CodeSymbol[] {
           name: m[1],
           signature: (m[2] ?? "").trim(),
           line: i + 1,
+          topLevel: line.length === line.trimStart().length,
         });
         break;
       }

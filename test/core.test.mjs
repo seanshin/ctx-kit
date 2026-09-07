@@ -11,6 +11,8 @@ import { buildRepoMap, rankFiles } from "../dist/core/repomap.js";
 import { buildPack } from "../dist/core/pack.js";
 import { syncRules, checkSync } from "../dist/core/sync.js";
 import { runChecks } from "../dist/core/check.js";
+import { CHECKS } from "../dist/checks/index.js";
+import { select } from "../dist/core/select.js";
 import { detectProject } from "../dist/core/detect.js";
 import { getContext } from "../dist/core/get.js";
 
@@ -175,6 +177,51 @@ test("detect: finds commands and module boundaries", () => {
   assert.ok(d.commands.some((c) => c.includes("pytest")));
   assert.ok(d.commands.some((c) => c.includes("cd web && npm test")));
   assert.deepEqual(d.modules.web, ["web/**"]);
+});
+
+test("seams: scorers compose onto the reference score", () => {
+  const { config } = makeRepo();
+  const base = rankFiles(config);
+  const boosted = rankFiles(config, {
+    scorers: [(files) => new Map(files.map((f) => [f.rel, f.rel === "tests/test_app.py" ? 1000 : 0]))],
+  });
+  assert.equal(base.at(-1).rel, "tests/test_app.py", "baseline: test file ranks last");
+  assert.equal(boosted[0].rel, "tests/test_app.py", "a scorer must be able to change the order");
+  // Without scorers the ranking must be exactly what it was before the seam.
+  assert.deepEqual(rankFiles(config, {}).map((f) => f.rel), base.map((f) => f.rel));
+});
+
+test("seams: select resolves modules and refuses unimplemented modes", () => {
+  const { root } = makeRepo({
+    "context.config.yaml": 'version: 1\nmodules:\n  core:\n    - "src/**"\n',
+  });
+  const config = loadConfig(root);
+  const sel = select(config, { module: "core" });
+  assert.deepEqual(sel.files.sort(), ["src/app.py", "src/core.py"]);
+  assert.deepEqual(sel.seeds, []);
+  assert.equal(sel.label, "core");
+  assert.deepEqual(select(config).label, "all");
+  assert.throws(() => select(config, { diff: "HEAD~1" }), /planned for 0\.4\.0/);
+  assert.throws(() => select(config, { module: "nope" }), /unknown module/);
+});
+
+test("seams: config exposes v2 defaults without a config file", () => {
+  const { config } = makeRepo();
+  assert.deepEqual(config.constraints, []);
+  assert.equal(config.health.duplicates, "warn");
+  assert.equal(config.health.coverage, "info");
+  assert.equal(config.ranking.cochange, false);
+  assert.equal(config.ranking.commits, 500);
+});
+
+test("seams: every registered check runs, and one crash cannot hide the rest", () => {
+  const { config } = makeRepo();
+  const names = new Set(CHECKS.map((c) => c.name));
+  assert.deepEqual([...names].sort(), ["agents-length", "repomap", "secrets", "sync"]);
+  const results = runChecks(config);
+  for (const n of ["agents-length", "sync", "repomap", "secrets"]) {
+    assert.ok(results.some((r) => r.name === n), `${n} did not report`);
+  }
 });
 
 test("get: returns matching sections only", () => {

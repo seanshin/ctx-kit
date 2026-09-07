@@ -43,12 +43,28 @@ function escapeRegExp(s: string): string {
 const TEST_PATH_RE = /(^|\/)(tests?|__tests__)\/|(^|\/)(test_[^/]*|conftest)\.py$|\.(test|spec)\.[jt]sx?$/;
 
 /**
- * Score and sort files by cross-file symbol references. When `relFiles` is
+ * An additional ranking signal. Returns a per-file contribution already
+ * normalized to roughly 0..1; `rankFiles` adds it to the reference score.
+ *
+ * Work streams add scorers as their own files (query, co-change) rather
+ * than editing this one — see docs/plan-v2.md §8-B.2.
+ */
+export type Scorer = (files: RankedFile[], config: CtxConfig) => Map<string, number>;
+
+export interface RankOptions {
+  /** Restrict ranking to these files (e.g. one module). */
+  files?: string[];
+  /** Extra signals added on top of the reference score. */
+  scorers?: Scorer[];
+}
+
+/**
+ * Score and sort files by cross-file symbol references. When `opts.files` is
  * given (e.g. one module's files), references are counted within that set.
  */
-export function rankFiles(config: CtxConfig, relFiles?: string[]): RankedFile[] {
+export function rankFiles(config: CtxConfig, opts: RankOptions = {}): RankedFile[] {
   const files =
-    relFiles ??
+    opts.files ??
     walkFiles(config.root, { exclude: config.exclude }).filter((f) =>
       SOURCE_EXTENSIONS.has(extname(f)),
     );
@@ -77,13 +93,18 @@ export function rankFiles(config: CtxConfig, relFiles?: string[]): RankedFile[] 
     if (TEST_PATH_RE.test(entry.rel)) entry.score *= 0.2;
   }
 
+  for (const scorer of opts.scorers ?? []) {
+    const contribution = scorer(entries, config);
+    for (const entry of entries) entry.score += contribution.get(entry.rel) ?? 0;
+  }
+
   entries.sort((a, b) => b.score - a.score || a.rel.localeCompare(b.rel));
   return entries;
 }
 
 export function buildRepoMap(config: CtxConfig, opts: RepoMapOptions = {}): string {
   const budget = opts.budget ?? 8000;
-  const entries = rankFiles(config, opts.files);
+  const entries = rankFiles(config, { files: opts.files });
 
   const header = [
     `<!-- ctxkit:v1 repomap generated=${new Date().toISOString()} budget=${budget}` +

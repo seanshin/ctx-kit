@@ -8,14 +8,18 @@
 import { existsSync, readFileSync } from "node:fs";
 import { extname, join } from "node:path";
 import { GENERATED_DIR, type CtxConfig } from "./config.js";
-import { readText, walkFiles } from "./fs.js";
+import { readText } from "./fs.js";
 import { buildRepoMap, rankFiles } from "./repomap.js";
+import { moduleFiles, select } from "./select.js";
 import { approxTokens } from "./tokens.js";
-import { SOURCE_EXTENSIONS } from "../adapters/symbols.js";
 
 export interface PackOptions {
   profile: string;
   module?: string;
+  /** Task description; ranks files by relevance (stream B, plan §4.4). */
+  about?: string;
+  /** Revision range or "--staged"; seeds with changes (stream D, plan §4.5). */
+  diff?: string;
 }
 
 export interface PackResult {
@@ -44,23 +48,16 @@ function agentsSummary(agents: string, maxLines = 40): string {
   return agents.split("\n").slice(0, maxLines).join("\n");
 }
 
-function moduleFiles(config: CtxConfig, moduleName: string): string[] {
-  const globs = config.modules[moduleName];
-  if (!globs) {
-    const known = Object.keys(config.modules).join(", ") || "(none defined)";
-    throw new Error(`unknown module "${moduleName}" — defined modules: ${known}`);
-  }
-  return walkFiles(config.root, { include: globs, exclude: config.exclude });
-}
-
-function targetFiles(config: CtxConfig, moduleName?: string): string[] {
-  const files = moduleName
-    ? moduleFiles(config, moduleName)
-    : walkFiles(config.root, { exclude: config.exclude }).filter((f) =>
-        SOURCE_EXTENSIONS.has(extname(f)),
-      );
+function targetFiles(config: CtxConfig, opts: PackOptions): string[] {
+  const selection = select(config, {
+    module: opts.module,
+    about: opts.about,
+    diff: opts.diff,
+  });
   // Budget cuts drop the tail, so order by importance, not alphabet.
-  return rankFiles(config, files).map((e) => e.rel);
+  const ranked = rankFiles(config, { files: selection.files }).map((e) => e.rel);
+  // Seeds must survive the budget, so they lead.
+  return [...selection.seeds, ...ranked.filter((r) => !selection.seeds.includes(r))];
 }
 
 export function buildPack(config: CtxConfig, opts: PackOptions): PackResult {
@@ -138,7 +135,7 @@ export function buildPack(config: CtxConfig, opts: PackOptions): PackResult {
         out += `## Target Files\n\n`;
         const reserve = tailReminder ? approxTokens(tailReminder) + 50 : 0;
         let omitted = 0;
-        for (const rel of targetFiles(config, opts.module)) {
+        for (const rel of targetFiles(config, opts)) {
           const text = readText(config.root, rel);
           if (text === null) continue;
           const lang = LANG_BY_EXT[extname(rel)] ?? "";
