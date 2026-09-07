@@ -52,7 +52,17 @@ export function allSourceFiles(config: CtxConfig): string[] {
 
 export function select(config: CtxConfig, opts: SelectOptions = {}): Selection {
   if (opts.diff !== undefined) {
-    return diffSelection(config, opts.diff);
+    const sel = diffSelection(config, opts.diff);
+    if (!opts.module) return sel;
+    // With both, the pack claims a module scope in its map and header, so the
+    // contents must honor it too — otherwise the pack shows out-of-module
+    // files under a module heading.
+    const inModule = new Set(moduleFiles(config, opts.module));
+    return {
+      files: sel.files.filter((f) => inModule.has(f)),
+      seeds: sel.seeds.filter((f) => inModule.has(f)),
+      label: `${opts.module}@${opts.diff}`,
+    };
   }
   const files = opts.module ? moduleFiles(config, opts.module) : allSourceFiles(config);
   // `about` is deliberately a no-op here: a query re-ranks candidates, it

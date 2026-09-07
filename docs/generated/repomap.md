@@ -1,4 +1,4 @@
-<!-- ctxkit:v1 repomap generated=2026-09-07T09:07:32.788Z budget=8000 -->
+<!-- ctxkit:v1 repomap generated=2026-09-07T09:15:19.717Z budget=8000 -->
 # Repository Map
 
 Files: 44 source files scanned. Ranked by cross-file references.
@@ -58,10 +58,13 @@ Files: 44 source files scanned. Ranked by cross-file references.
 ## src/core/repomap.ts
 - L16 interface `RepoMapOptions`
 - L24 interface `RankedFile`
-- L50 type `Scorer`
-- L52 interface `RankOptions`
-- L63 function `rankFiles(config: CtxConfig, opts: RankOptions = {})`
-- L124 function `buildRepoMap(config: CtxConfig, opts: RepoMapOptions = {})`
+- L44 const `COMMON_NAMES`
+- L55 const `TEST_PATH_RE`
+- L58 const `TEST_DEMOTION`
+- L67 type `Scorer`
+- L74 interface `RankOptions`
+- L85 function `rankFiles(config: CtxConfig, opts: RankOptions = {})`
+- L164 function `buildRepoMap(config: CtxConfig, opts: RepoMapOptions = {})`
 
 ## src/checks/types.ts
 - L9 interface `CheckResult`
@@ -105,15 +108,14 @@ Files: 44 source files scanned. Ranked by cross-file references.
 ## src/core/pack.ts
 - L18 interface `PackOptions`
 - L27 interface `PackResult`
-- L52 function `readAgents(config: CtxConfig)`
-- L57 function `agentsSummary(agents: string, maxLines = 40)`
-- L61 function `fileBlock(config: CtxConfig, rel: string)`
-- L75 function `assembleScorers(`
-- L89 function `targetFiles(config: CtxConfig, opts: PackOptions)`
-- L107 function `buildPack(config: CtxConfig, opts: PackOptions)`
-- L277 interface `ExplainRow`
-- L302 function `explainPack(config: CtxConfig, opts: PackOptions)`
-- L314 function `shownRef`
+- L54 function `readAgents(config: CtxConfig)`
+- L59 function `agentsSummary(agents: string, maxLines = 40)`
+- L63 function `fileBlock(config: CtxConfig, rel: string)`
+- L77 function `assembleScorers(`
+- L91 function `targetFiles(config: CtxConfig, opts: PackOptions)`
+- L109 function `buildPack(config: CtxConfig, opts: PackOptions)`
+- L295 interface `ExplainRow`
+- L326 function `explainPack(config: CtxConfig, opts: PackOptions)`
 
 ## src/core/tokens.ts
 - L34 function `isCJK(codePoint: number)`
@@ -202,8 +204,8 @@ Files: 44 source files scanned. Ranked by cross-file references.
 - L39 function `logCommits(root: string, limit = 500)`
 
 ## src/scorers/query.ts
-- L25 function `scoreQuery(files: RankedFile[], config: CtxConfig, query: string)`
-- L66 function `makeQueryScorer(query: string)`
+- L25 function `scoreQuery(files: RankedFile[], config: CtxConfig, query: string, contents?: ReadonlyMap<string, string>)`
+- L71 function `makeQueryScorer(query: string)`
 
 ## src/core/text.ts
 - L2 function `escapeRegExp(s: string)`
@@ -266,7 +268,7 @@ Files: 44 source files scanned. Ranked by cross-file references.
 - L38 function `rootDir()`
 - L46 function `printExplain(rows: ExplainRow[])`
 - L47 function `col`
-- L62 function `writeOutput(root: string, relPath: string, content: string, stdout: boolean)`
+- L64 function `writeOutput(root: string, relPath: string, content: string, stdout: boolean)`
 
 ## src/adapters/repomix.ts
 - L11 function `repomixAvailable()`

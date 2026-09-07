@@ -152,10 +152,15 @@ test("about: --explain reports a ranked, budget-aware breakdown", () => {
 
   assert.ok(rows.length > 0 && rows.length <= 20, "at most 20 rows");
   for (const r of rows) {
-    for (const key of ["rel", "referenceScore", "queryScore", "finalScore", "included"]) {
+    for (const key of ["rel", "referenceScore", "queryScore", "demotion", "finalScore", "included"]) {
       assert.ok(key in r, `row missing ${key}`);
     }
-    assert.equal(r.finalScore, r.referenceScore + r.queryScore);
+    // The ranker demotes test paths after every signal, so the breakdown has
+    // to show that factor for the arithmetic to hold.
+    assert.ok(
+      Math.abs(r.finalScore - (r.referenceScore + r.queryScore) * r.demotion) < 1e-9,
+      `final must equal (reference + query) * demotion for ${r.rel}`,
+    );
   }
   // Sorted descending by final score.
   for (let i = 1; i < rows.length; i++) {
@@ -171,5 +176,9 @@ test("about: --explain reports a ranked, budget-aware breakdown", () => {
   // With no `about`, the query column is uniformly zero and final ==
   // reference — the same no-regression guarantee, visible in the table.
   const noQuery = explainPack(config, { profile: "light" });
-  assert.ok(noQuery.every((r) => r.queryScore === 0 && r.finalScore === r.referenceScore));
+  assert.ok(
+    noQuery.every(
+      (r) => r.queryScore === 0 && Math.abs(r.finalScore - r.referenceScore * r.demotion) < 1e-9,
+    ),
+  );
 });

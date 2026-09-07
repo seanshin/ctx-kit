@@ -90,6 +90,7 @@ export async function startMcpServer(rootDir: string): Promise<void> {
       }
       try {
         const pack = buildPack(config, { profile: profile ?? "light", module, about });
+        for (const note of pack.notes) parts.push(`<!-- warning: ${note} -->`);
         parts.push(pack.content);
       } catch (err) {
         return text(err instanceof Error ? err.message : String(err));
@@ -161,7 +162,8 @@ export async function startMcpServer(rootDir: string): Promise<void> {
         const full = join(config.root, pack.relOutPath);
         mkdirSync(dirname(full), { recursive: true });
         writeFileSync(full, pack.content);
-        return text(`wrote ${pack.relOutPath} (~${pack.tokens} tokens)`);
+        const notes = pack.notes.length > 0 ? `\n\nwarning: ${pack.notes.join("\nwarning: ")}` : "";
+        return text(`wrote ${pack.relOutPath} (~${pack.tokens} tokens)${notes}`);
       } catch (err) {
         return text(err instanceof Error ? err.message : String(err));
       }

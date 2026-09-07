@@ -25,9 +25,23 @@ export interface RankedFile {
   rel: string;
   symbols: CodeSymbol[];
   score: number;
+  /**
+   * How `score` was reached, recorded by the ranker itself. Anything that
+   * explains a ranking reads this instead of recomputing the sum: three
+   * separate defects came from a second code path re-deriving these numbers
+   * and getting a different answer than the one the packer used.
+   * `score === (reference + scorers) * demotion`.
+   */
+  parts: { reference: number; scorers: number; demotion: number };
 }
 
-const COMMON_NAMES = new Set([
+/**
+ * Symbol names too generic to carry a reference signal. Exported because
+ * every scanner that counts symbol occurrences must filter the same set —
+ * a changed function named `update` otherwise drags in every file that
+ * happens to contain that English word.
+ */
+export const COMMON_NAMES = new Set([
   "main", "init", "test", "setup", "index", "data", "name", "type", "value",
   "get", "set", "run", "new", "update", "create", "delete", "read", "write",
 ]);
@@ -38,7 +52,10 @@ const COMMON_NAMES = new Set([
  * every test; test files define many symbols), but an agent orienting in a
  * codebase needs production code first — demote them.
  */
-const TEST_PATH_RE = /(^|\/)(tests?|__tests__)\/|(^|\/)(test_[^/]*|conftest)\.py$|\.(test|spec)\.[jt]sx?$/;
+export const TEST_PATH_RE = /(^|\/)(tests?|__tests__)\/|(^|\/)(test_[^/]*|conftest)\.py$|\.(test|spec)\.[jt]sx?$/;
+
+/** How far a test file is pushed down, applied to every signal. */
+export const TEST_DEMOTION = 0.2;
 
 /**
  * An additional ranking signal. Returns a per-file contribution already
@@ -47,7 +64,12 @@ const TEST_PATH_RE = /(^|\/)(tests?|__tests__)\/|(^|\/)(test_[^/]*|conftest)\.py
  * Work streams add scorers as their own files (query, co-change) rather
  * than editing this one — see docs/plan-v2.md §8-B.2.
  */
-export type Scorer = (files: RankedFile[], config: CtxConfig) => Map<string, number>;
+export type Scorer = (
+  files: RankedFile[],
+  config: CtxConfig,
+  /** File contents the ranker already read — scorers must not re-read from disk. */
+  contents: ReadonlyMap<string, string>,
+) => Map<string, number>;
 
 export interface RankOptions {
   /** Restrict ranking to these files (e.g. one module). */
@@ -73,7 +95,12 @@ export function rankFiles(config: CtxConfig, opts: RankOptions = {}): RankedFile
     const text = readText(config.root, rel);
     if (text === null) continue;
     contents.set(rel, text);
-    entries.push({ rel, symbols: extractSymbols(rel, text), score: 0 });
+    entries.push({
+      rel,
+      symbols: extractSymbols(rel, text),
+      score: 0,
+      parts: { reference: 0, scorers: 0, demotion: 1 },
+    });
   }
 
   // Cross-file reference counting (capped to keep the naive scan bounded).
@@ -88,6 +115,7 @@ export function rankFiles(config: CtxConfig, opts: RankOptions = {}): RankedFile
       }
     }
     entry.score += Math.min(entry.symbols.length, 10) * 0.5; // mild self-weight, capped
+    entry.parts.reference = entry.score;
   }
 
   const scorers = opts.scorers ?? [];
@@ -100,11 +128,20 @@ export function rankFiles(config: CtxConfig, opts: RankOptions = {}): RankedFile
     // path below keeps its exact ordering *and* its absolute values, which
     // other callers (health checks) read.
     const maxRef = Math.max(...entries.map((e) => e.score), 0);
-    if (maxRef > 0) for (const entry of entries) entry.score /= maxRef;
+    if (maxRef > 0) {
+      for (const entry of entries) {
+        entry.score /= maxRef;
+        entry.parts.reference = entry.score;
+      }
+    }
 
     for (const scorer of scorers) {
-      const contribution = scorer(entries, config);
-      for (const entry of entries) entry.score += contribution.get(entry.rel) ?? 0;
+      const contribution = scorer(entries, config, contents);
+      for (const entry of entries) {
+        const add = contribution.get(entry.rel) ?? 0;
+        entry.score += add;
+        entry.parts.scorers += add;
+      }
     }
   }
 
@@ -114,7 +151,10 @@ export function rankFiles(config: CtxConfig, opts: RankOptions = {}): RankedFile
   // prevent. With no scorers this is the same multiplication as before, on
   // the same value, so the plain ranking is unchanged.
   for (const entry of entries) {
-    if (TEST_PATH_RE.test(entry.rel)) entry.score *= 0.2;
+    if (TEST_PATH_RE.test(entry.rel)) {
+      entry.score *= TEST_DEMOTION;
+      entry.parts.demotion = TEST_DEMOTION;
+    }
   }
 
   entries.sort((a, b) => b.score - a.score || a.rel.localeCompare(b.rel));

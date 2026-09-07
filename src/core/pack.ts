@@ -29,6 +29,8 @@ export interface PackResult {
   tokens: number;
   /** Suggested output path relative to repo root. */
   relOutPath: string;
+  /** Things the caller should be told — surfaced by the CLI and MCP. */
+  notes: string[];
 }
 
 /** Size of the cross-module orientation index inside a module pack's map. */
@@ -113,6 +115,22 @@ export function buildPack(config: CtxConfig, opts: PackOptions): PackResult {
   }
   const budget = profile.budget;
   const agents = readAgents(config);
+  const notes: string[] = [];
+
+  // --about and --diff only shape the target-files section. On a profile
+  // that never includes one they change nothing at all, and silently doing
+  // nothing is the worst possible answer to an explicit request.
+  if (!profile.inject.includes("target-files")) {
+    for (const [flag, value] of [["--about", opts.about], ["--diff", opts.diff]] as const) {
+      if (value !== undefined) {
+        notes.push(
+          `${flag} has no effect on profile "${opts.profile}": it selects target files, ` +
+            `and this profile injects ${profile.inject.join(", ")} only. Use a profile ` +
+            `with target-files (e.g. light).`,
+        );
+      }
+    }
+  }
 
   const header =
     `<!-- ctxkit:v1 pack profile=${opts.profile}` +
@@ -271,16 +289,22 @@ export function buildPack(config: CtxConfig, opts: PackOptions): PackResult {
   }
 
   const relOutPath = join(GENERATED_DIR, "packs", `${opts.module ?? "all"}-${opts.profile}.md`);
-  return { content: out, tokens: approxTokens(out), relOutPath };
+  return { content: out, tokens: approxTokens(out), relOutPath, notes };
 }
 
 export interface ExplainRow {
   rel: string;
   /** Cross-file reference score, before any scorer is applied. */
   referenceScore: number;
-  /** Normalized, weighted query contribution (0 with no `--about`). */
+  /** Combined scorer contribution — query and co-change (0 with neither). */
   queryScore: number;
-  /** `referenceScore + queryScore` — what `targetFiles` sorts by. */
+  /**
+   * Multiplier applied after every signal; 0.2 for test paths, else 1.
+   * Shown because without it a demoted row's numbers look like they do not
+   * add up, which is how an explanation loses the reader's trust.
+   */
+  demotion: number;
+  /** `(referenceScore + queryScore) * demotion` — what `targetFiles` sorts by. */
   finalScore: number;
   /** Whether the file's body made it into the pack's Target Files section. */
   included: boolean;
@@ -301,31 +325,22 @@ export interface ExplainRow {
  */
 export function explainPack(config: CtxConfig, opts: PackOptions): ExplainRow[] {
   const selection = select(config, { module: opts.module, about: opts.about, diff: opts.diff });
-  const baseline = rankFiles(config, { files: selection.files });
   const scorers = assembleScorers(config, opts, selection);
 
-  // Report the ranking that actually happens. `rankFiles` normalizes the
-  // reference score once a scorer is present, so recomputing the sum here
-  // would show numbers the packer never used — and an explanation that does
-  // not match the decision is worse than none.
-  const actual = rankFiles(config, { files: selection.files, scorers });
-  const rawRef = new Map(baseline.map((e) => [e.rel, e.score]));
-  const maxRef = Math.max(...baseline.map((e) => e.score), 0);
-  const shownRef = (rel: string): number => {
-    const raw = rawRef.get(rel) ?? 0;
-    return scorers.length > 0 && maxRef > 0 ? raw / maxRef : raw;
-  };
-
-  const rows = actual.map((e) => ({
-    rel: e.rel,
-    referenceScore: shownRef(e.rel),
-    queryScore: e.score - shownRef(e.rel),
-    finalScore: e.score,
-  }));
-
+  // Read the breakdown the ranker recorded. Recomputing it here is how this
+  // table went wrong three times; `parts` exists so it cannot happen again.
+  const ranked = rankFiles(config, { files: selection.files, scorers });
   const pack = buildPack(config, opts);
   const targetSection = pack.content.split("## Target Files")[1] ?? "";
   const included = new Set([...targetSection.matchAll(/^### (.+)$/gm)].map((m) => m[1].trim()));
 
-  return rows.slice(0, 20).map((r) => ({ ...r, included: included.has(r.rel) }));
+  return ranked.slice(0, 20).map((e) => ({
+    rel: e.rel,
+    referenceScore: e.parts.reference,
+    queryScore: e.parts.scorers,
+    demotion: e.parts.demotion,
+    finalScore: e.score,
+    included: included.has(e.rel),
+  }));
 }
+

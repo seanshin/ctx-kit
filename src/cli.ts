@@ -46,12 +46,14 @@ function rootDir(): string {
 function printExplain(rows: ExplainRow[]): void {
   const col = (s: string, w: number) => (s.length > w ? s.slice(0, w - 1) + "…" : s.padEnd(w));
   console.error(`\n--explain: top ${rows.length} file(s) by final score\n`);
-  console.error(col("file", 46) + col("reference", 11) + col("query", 11) + col("final", 11) + "included");
+  console.error(col("file", 46) + col("reference", 11) + col("query", 11) + col("demote", 7) +
+        col("final", 11) + "included");
   for (const r of rows) {
     console.error(
       col(r.rel, 46) +
         col(r.referenceScore.toFixed(2), 11) +
         col(r.queryScore.toFixed(2), 11) +
+        col(r.demotion === 1 ? "-" : `x${r.demotion}`, 7) +
         col(r.finalScore.toFixed(2), 11) +
         (r.included ? "yes" : "no"),
     );
@@ -187,6 +189,7 @@ program
       about: opts.about,
       diff: opts.diff,
     });
+    for (const note of pack.notes) console.error(`warning: ${note}`);
     writeOutput(config.root, pack.relOutPath, pack.content, opts.stdout ?? false);
     if (!opts.stdout) console.log(`~${pack.tokens} tokens (budget ${config.profiles[opts.profile].budget})`);
   });

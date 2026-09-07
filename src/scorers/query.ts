@@ -22,7 +22,7 @@ const FIELD_WEIGHTS = { path: 3, symbols: 2, body: 1 } as const;
  * normalization buries the path/symbol signal in files with large bodies
  * (plan §4.4 rationale for the two BM25 revisions).
  */
-export function scoreQuery(files: RankedFile[], config: CtxConfig, query: string): Map<string, number> {
+export function scoreQuery(files: RankedFile[], config: CtxConfig, query: string, contents?: ReadonlyMap<string, string>): Map<string, number> {
   const queryTerms = tokenize(query);
   const raw = new Map<string, number>();
   if (queryTerms.length === 0) return raw;
@@ -35,7 +35,12 @@ export function scoreQuery(files: RankedFile[], config: CtxConfig, query: string
     symbolDocs.push({ id: f.rel, tokens: tokenize(f.symbols.map((s) => s.name).join(" ")) });
     // Symbol extraction failed or the language is unsupported: score on
     // path/body only rather than throwing away the file (plan §6-C).
-    bodyDocs.push({ id: f.rel, tokens: tokenize(readText(config.root, f.rel) ?? "") });
+    // Use the contents the ranker already read: re-reading every file from
+    // disk here put `pack --about` over the §6-B budget on a 300-file repo.
+    bodyDocs.push({
+      id: f.rel,
+      tokens: tokenize(contents?.get(f.rel) ?? readText(config.root, f.rel) ?? ""),
+    });
   }
 
   // path/symbols have low length variance (a filename, a name list), so
@@ -64,8 +69,8 @@ export function scoreQuery(files: RankedFile[], config: CtxConfig, query: string
  * normalize(q(F))` (plan §4.4).
  */
 export function makeQueryScorer(query: string): Scorer {
-  return (files, config) => {
-    const raw = scoreQuery(files, config, query);
+  return (files, config, contents) => {
+    const raw = scoreQuery(files, config, query, contents);
     const max = Math.max(0, ...raw.values());
     const out = new Map<string, number>();
     if (max <= 0) return out;

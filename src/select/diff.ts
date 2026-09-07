@@ -15,7 +15,7 @@ import { extname } from "node:path";
 import type { CtxConfig } from "../core/config.js";
 import { diffFiles, isRepo } from "../core/git.js";
 import { readText } from "../core/fs.js";
-import { rankFiles } from "../core/repomap.js";
+import { COMMON_NAMES, TEST_DEMOTION, TEST_PATH_RE, rankFiles } from "../core/repomap.js";
 import { allSourceFiles, type Selection } from "../core/select.js";
 import { extractSymbols, SOURCE_EXTENSIONS } from "../adapters/symbols.js";
 import { escapeRegExp } from "../core/text.js";
@@ -67,7 +67,12 @@ export function diffSelection(config: CtxConfig, range: string): Selection {
     const text = readText(config.root, rel);
     if (text === null) continue;
     for (const sym of extractSymbols(rel, text)) {
-      if (sym.name.length >= MIN_SYMBOL_LEN) symbolNames.add(sym.name);
+      // Same generic-name filter the reference ranker uses: a changed
+      // function called `update` otherwise drags in every file containing
+      // that English word.
+      if (sym.name.length >= MIN_SYMBOL_LEN && !COMMON_NAMES.has(sym.name.toLowerCase())) {
+        symbolNames.add(sym.name);
+      }
     }
   }
 
@@ -82,7 +87,13 @@ export function diffSelection(config: CtxConfig, range: string): Selection {
       const text = readText(config.root, rel);
       if (text === null) continue;
       const matches = text.match(re);
-      if (matches && matches.length > 0) scored.push({ rel, score: matches.length });
+      if (matches && matches.length > 0) {
+        // Demote tests here too. Without it a widely-tested change fills
+        // every expansion slot with its own test files and the production
+        // caller — the thing a reviewer needs — drops out entirely.
+        const demotion = TEST_PATH_RE.test(rel) ? TEST_DEMOTION : 1;
+        scored.push({ rel, score: matches.length * demotion });
+      }
     }
     scored.sort((a, b) => b.score - a.score || a.rel.localeCompare(b.rel));
     expansion.push(...scored.slice(0, MAX_EXPANSION).map((s) => s.rel));
