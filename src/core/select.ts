@@ -55,5 +55,13 @@ export function select(config: CtxConfig, opts: SelectOptions = {}): Selection {
     return diffSelection(config, opts.diff);
   }
   const files = opts.module ? moduleFiles(config, opts.module) : allSourceFiles(config);
+  // `about` is deliberately a no-op here: a query re-ranks candidates, it
+  // never changes which files are candidates (plan §4.4 — the pack still
+  // "returns the same candidate files"). Filtering the universe by query
+  // relevance would silently hide a low-scoring but still-relevant file
+  // instead of just ranking it lower. Applying the query is `core/pack.ts`'s
+  // job: it builds a `Scorer` from `opts.about` (via `scorers/query.ts`)
+  // and passes it into `rankFiles`, which orders `selection.files` without
+  // touching this list.
   return { files, seeds: [], label: opts.module ?? "all" };
 }
