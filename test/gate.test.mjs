@@ -6,12 +6,17 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { spawnSync } from "node:child_process";
 
 import { loadConfig } from "../dist/core/config.js";
 import { runChecks } from "../dist/core/check.js";
 import { extractImports } from "../dist/adapters/imports.js";
 import { readBaseline, writeBaseline, toBaselineEntries, applyBaseline } from "../dist/core/baseline.js";
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
+const CLI = join(ROOT, "dist/cli.js");
 
 /** Scaffold a small repo (config + files) and return its root + config. */
 function makeRepo(files = {}) {
@@ -165,7 +170,10 @@ test("health: coverage reports files outside every module glob, and is skipped w
   });
   const results = runChecks(config);
   const coverage = byName(results, "coverage");
-  assert.ok(coverage.some((r) => r.detail.includes("src/uncovered/b.ts") && r.level === "warn")); // "info" maps to warn
+  // health.coverage's documented default is "info" (context.config.yaml
+  // schema, docs/plan-v2.md §4.2) and CheckResult.level carries it through
+  // unmapped — it must never read as "warn".
+  assert.ok(coverage.some((r) => r.detail.includes("src/uncovered/b.ts") && r.level === "info"));
   assert.ok(!coverage.some((r) => r.detail.includes("src/covered/a.ts")));
 
   const { config: noModules } = makeRepo({ "src/a.ts": "export function a() {}\n" });
@@ -248,6 +256,108 @@ test("rot: command candidates outside '## Commands' are ignored", () => {
   const results = runChecks(config);
   const commands = byName(results, "rot-command");
   assert.ok(!commands.some((r) => r.detail.includes("outside-the-section")));
+});
+
+/* ---------------------------------------------------------------- */
+/* Stream G regressions                                              */
+/* ---------------------------------------------------------------- */
+
+// (1) --run-commands must never hang on a non-terminating command — this
+// repo's own AGENTS.md documents `Watch: \`npm run dev\`` (tsc --watch,
+// never exits) and used to burn the full 120s timeout and report ETIMEDOUT
+// as a false `fail`. A terminating command in the same section must still
+// actually run.
+test("rot: --run-commands skips a watch/dev command by name instead of running it, and still runs a normal one", () => {
+  const { config } = makeRepo({
+    "AGENTS.md":
+      "# AGENTS.md\n\n## Commands\n\n- Version: `npm --version`\n- Watch: `npm run dev`\n",
+  });
+  const start = Date.now();
+  const results = runChecks(config, { runCommands: true });
+  assert.ok(Date.now() - start < 10_000, "must not burn the 120s command timeout on a non-terminating command");
+
+  const commands = byName(results, "rot-command");
+  const watch = commands.find((r) => r.detail.includes("npm run dev"));
+  assert.ok(watch, "expected a result for the watch command");
+  assert.equal(watch.level, "info", "a skipped-by-design command must not fail or warn the gate");
+  assert.match(watch.detail, /skipped by design/);
+  assert.match(watch.detail, /Watch/); // named so the user knows what was not verified
+  assert.equal(watch.subject, "npm run dev");
+
+  const ran = commands.find((r) => r.detail.includes("npm --version"));
+  assert.ok(ran, "expected a result for the normal command");
+  assert.equal(ran.level, "ok");
+  assert.match(ran.detail, /ran successfully/);
+});
+
+test("rot: config.rot.skip_commands force-skips a command the built-in heuristic would otherwise run", () => {
+  const { config } = makeRepo({
+    "context.config.yaml": 'version: 1\nrot:\n  skip_commands:\n    - "mything"\n',
+    "AGENTS.md": "# AGENTS.md\n\n## Commands\n\n- Custom: `npm run mything`\n",
+  });
+  const results = runChecks(config, { runCommands: true });
+  const hit = byName(results, "rot-command").find((r) => r.detail.includes("npm run mything"));
+  assert.ok(hit);
+  assert.equal(hit.level, "info");
+  assert.match(hit.detail, /rot\.skip_commands/);
+});
+
+// (2) HealthConfig's 4-valued Level (info/ok/warn/fail) must reach
+// CheckResult.level unmapped, print distinctly in the CLI, and never count
+// toward the failure exit code.
+test("cli: an info-level finding (coverage's default) exits 0 and prints its own icon, not warn's", () => {
+  const { root } = makeRepo({
+    "AGENTS.md": "# AGENTS.md\n",
+    "context.config.yaml": 'version: 1\nmodules:\n  covered:\n    - "src/covered/**"\n',
+    "src/covered/a.ts": "export function a() {}\n",
+    "src/uncovered/b.ts": "export function b() {}\n",
+  });
+  const res = spawnSync(process.execPath, [CLI, "-C", root, "check"], { encoding: "utf8" });
+  assert.equal(res.status, 0, `expected exit 0, got ${res.status}: ${res.stdout}\n${res.stderr}`);
+  assert.match(res.stdout, /^i \[coverage\] src\/uncovered\/b\.ts matches no module glob$/m);
+  assert.ok(!res.stdout.includes("! [coverage]"), "coverage's info-level result must not print with warn's icon");
+  assert.ok(!res.stderr.includes("check(s) failed"));
+});
+
+// (3) The baseline must key on {check, location, subject}, not on `detail`
+// prose, so an unrelated wording change to a check's message doesn't
+// silently invalidate the entry — while a genuinely different violation
+// (different subject) at the same location still fails.
+test("baseline: a detail reword does not invalidate a structured entry, but a different subject still fails", () => {
+  const { root } = makeRepo({});
+  const original = {
+    level: "fail",
+    name: "constraint",
+    detail: "[discount-single-source] \"apply_discount\" defined at src/pricing/other.py:1, but only_in allows src/pricing/discount.py",
+    location: { file: "src/pricing/other.py", line: 1 },
+    subject: "discount-single-source",
+  };
+  writeBaseline(root, toBaselineEntries([original]));
+  const baseline = readBaseline(root);
+  assert.equal(baseline.length, 1);
+  assert.equal(baseline[0].identifier, undefined, "a structured result must not fall back to a prose identifier");
+
+  // Same location + subject, wording changed — must still ratchet to warn.
+  const reworded = { ...original, detail: "[discount-single-source] apply_discount also defined outside only_in now" };
+  const appliedReword = applyBaseline([reworded], baseline);
+  assert.equal(appliedReword[0].level, "warn", "a prose-only reword must not invalidate the baseline entry");
+
+  // Different subject, same location — a genuinely new violation must still fail.
+  const differentSubject = { ...original, subject: "some-other-constraint" };
+  const appliedNew = applyBaseline([differentSubject], baseline);
+  assert.equal(appliedNew[0].level, "fail", "a different subject at the same location is a different violation");
+
+  // Backward compatibility: a schema-1 baseline file ({check, identifier})
+  // must still be readable and still ratchet its matching prose result.
+  mkdirSync(join(root, "docs/generated"), { recursive: true });
+  writeFileSync(
+    join(root, "docs/generated/baseline.json"),
+    JSON.stringify({ version: 1, entries: [{ check: "constraint", identifier: "[legacy] old prose violation" }] }, null, 2),
+  );
+  const legacyBaseline = readBaseline(root);
+  assert.equal(legacyBaseline.length, 1);
+  const legacyResult = { level: "fail", name: "constraint", detail: "[legacy] old prose violation" };
+  assert.equal(applyBaseline([legacyResult], legacyBaseline)[0].level, "warn");
 });
 
 /* ---------------------------------------------------------------- */

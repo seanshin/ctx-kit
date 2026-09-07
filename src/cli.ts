@@ -234,7 +234,10 @@ program
       return;
     }
     const reported = noBaseline ? results : applyBaseline(results, readBaseline(config.root));
-    const icon = { ok: "✓", warn: "!", fail: "✗" } as const;
+    // "info" is distinct from "ok"/"warn"/"fail": printed with its own icon
+    // so it reads as informational, and never counted toward the failure
+    // exit code below (checks/types.ts, core/config.ts's 4-valued `Level`).
+    const icon = { ok: "✓", warn: "!", fail: "✗", info: "i" } as const;
     for (const r of reported) console.log(`${icon[r.level]} [${r.name}] ${r.detail}`);
     const fails = reported.filter((r) => r.level === "fail").length;
     if (fails > 0) {

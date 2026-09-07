@@ -9,19 +9,9 @@ import picomatch from "picomatch";
 import { readText, walkFiles } from "../core/fs.js";
 import { SOURCE_EXTENSIONS, type CodeSymbol } from "../adapters/symbols.js";
 import { extractImports } from "../adapters/imports.js";
-import type { CtxConfig, Level } from "../core/config.js";
+import type { CtxConfig } from "../core/config.js";
 import type { RankedFile } from "../core/repomap.js";
 import type { Check, CheckContext, CheckResult } from "./types.js";
-
-/**
- * `CheckResult.level` is only "ok" | "warn" | "fail" (checks/types.ts,
- * outside this stream's ownership), while `health.*` config values are the
- * four-valued `Level` (adds "info"). "info" has no gate-blocking meaning
- * here, so it maps to "warn" — printed, never fails the build.
- */
-function resultLevel(configured: Level): "ok" | "warn" | "fail" {
-  return configured === "info" ? "warn" : configured;
-}
 
 // Same demotion the repo map uses for test files (docs/plan-v2.md §4.2: test
 // paths are excluded before every subsequent filter stage).
@@ -74,6 +64,8 @@ function checkConstraints(config: CtxConfig, entries: RankedFile[]): CheckResult
               level: "fail",
               name: "constraint",
               detail: `[${c.id}] "${c.symbol}" defined at ${entry.rel}:${sym.line}, but only_in allows ${c.only_in.join(", ")}`,
+              location: { file: entry.rel, line: sym.line },
+              subject: c.id,
             });
           }
         }
@@ -100,6 +92,8 @@ function checkConstraints(config: CtxConfig, entries: RankedFile[]): CheckResult
                 (imp.resolved ? ` (resolved: ${imp.resolved})` : "") +
                 ` — forbidden by must_not_import ${c.must_not_import.join(", ")}` +
                 ` (tsconfig paths and workspace aliases are not resolved; only literal/relative specifiers are checked)`,
+              location: { file: entry.rel, line: imp.line },
+              subject: c.id,
             });
           }
         }
@@ -113,6 +107,7 @@ function checkConstraints(config: CtxConfig, entries: RankedFile[]): CheckResult
           level: "fail",
           name: "constraint",
           detail: `[${c.id}] invalid forbid_pattern: ${err instanceof Error ? err.message : String(err)}`,
+          subject: c.id,
         });
       }
       if (re) {
@@ -126,6 +121,8 @@ function checkConstraints(config: CtxConfig, entries: RankedFile[]): CheckResult
                 level: "fail",
                 name: "constraint",
                 detail: `[${c.id}] forbidden pattern /${c.forbid_pattern}/ found at ${rel}:${i + 1}`,
+                location: { file: rel, line: i + 1 },
+                subject: c.id,
               });
             }
           }
@@ -285,11 +282,13 @@ export const healthCheck: Check = {
       results.push({ level: "ok", name: "duplicate", detail: "no duplicate definitions found" });
     } else {
       for (const [name, occs] of duplicates) {
-        const files = [...new Set(occs.map((o) => o.rel))];
+        const files = [...new Set(occs.map((o) => o.rel))].sort();
         results.push({
-          level: resultLevel(config.health.duplicates),
+          level: config.health.duplicates,
           name: "duplicate",
           detail: `"${name}" defined identically in ${files.join(", ")}`,
+          location: { file: files[0] },
+          subject: name,
         });
       }
     }
@@ -310,9 +309,11 @@ export const healthCheck: Check = {
     } else {
       for (const rel of orphans) {
         results.push({
-          level: resultLevel(config.health.orphans),
+          level: config.health.orphans,
           name: "orphan",
           detail: `${rel} has zero external references`,
+          location: { file: rel },
+          subject: rel,
         });
       }
     }
@@ -324,7 +325,13 @@ export const healthCheck: Check = {
       results.push({ level: "ok", name: "coverage", detail: "every source file is covered by a module" });
     } else {
       for (const rel of uncovered) {
-        results.push({ level: resultLevel(config.health.coverage), name: "coverage", detail: `${rel} matches no module glob` });
+        results.push({
+          level: config.health.coverage,
+          name: "coverage",
+          detail: `${rel} matches no module glob`,
+          location: { file: rel },
+          subject: rel,
+        });
       }
     }
 

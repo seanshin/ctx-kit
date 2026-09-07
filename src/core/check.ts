@@ -2,7 +2,9 @@
  * `ctxkit check` — the CI gate. This file is only the driver: each check
  * lives in `src/checks/` and registers itself in `checks/index.ts`.
  *
- * fail = exit non-zero in CI; warn = informational.
+ * fail = exit non-zero in CI; warn/info = informational (info reads as
+ * lower-severity than warn and is used for findings that are correct but
+ * not actionable on their own, e.g. a documented command skipped by design).
  */
 import { CHECKS } from "../checks/index.js";
 import type { CheckContext, CheckOptions, CheckResult } from "../checks/types.js";
