@@ -1,4 +1,4 @@
-<!-- ctxkit:v1 repomap generated=2026-09-07T08:50:22.532Z budget=8000 -->
+<!-- ctxkit:v1 repomap generated=2026-09-07T08:59:56.172Z budget=8000 -->
 # Repository Map
 
 Files: 44 source files scanned. Ranked by cross-file references.
@@ -95,21 +95,38 @@ Files: 44 source files scanned. Ranked by cross-file references.
 ## src/core/pack.ts
 - L18 interface `PackOptions`
 - L27 interface `PackResult`
-- L44 function `readAgents(config: CtxConfig)`
-- L49 function `agentsSummary(agents: string, maxLines = 40)`
-- L53 function `fileBlock(config: CtxConfig, rel: string)`
-- L67 function `assembleScorers(`
-- L81 function `targetFiles(config: CtxConfig, opts: PackOptions)`
-- L99 function `buildPack(config: CtxConfig, opts: PackOptions)`
-- L247 interface `ExplainRow`
-- L272 function `explainPack(config: CtxConfig, opts: PackOptions)`
-- L284 function `shownRef`
+- L52 function `readAgents(config: CtxConfig)`
+- L57 function `agentsSummary(agents: string, maxLines = 40)`
+- L61 function `fileBlock(config: CtxConfig, rel: string)`
+- L75 function `assembleScorers(`
+- L89 function `targetFiles(config: CtxConfig, opts: PackOptions)`
+- L107 function `buildPack(config: CtxConfig, opts: PackOptions)`
+- L277 interface `ExplainRow`
+- L302 function `explainPack(config: CtxConfig, opts: PackOptions)`
+- L314 function `shownRef`
 
 ## src/core/tokens.ts
 - L34 function `isCJK(codePoint: number)`
 - L56 function `setTokenCounter(fn: (text: string)`
 - L60 function `approxTokens(text: string)`
 - L64 function `heuristicTokens(text: string)`
+
+## src/scorers/cochange.ts
+- L36 function `git(root: string, args: string[])`
+- L41 function `headCommit(root: string)`
+- L46 function `isShallow(root: string)`
+- L50 function `historyDepth(root: string)`
+- L61 function `coChangeAvailable(root: string)`
+- L71 interface `CacheEntry`
+- L80 function `cachePath(root: string)`
+- L84 function `readDiskCache(root: string)`
+- L97 function `writeDiskCache(root: string, entry: CacheEntry)`
+- L112 function `filteredCommits(root: string, limit: number)`
+- L137 function `seedColumnSums(seeds: string[], commits: string[][])`
+- L161 function `makeCoChangeScorer(seeds: string[])`
+- L188 function `isIgnoredPath(rel: string)`
+- L207 function `coChangeOutsideModule(`
+- L236 function `coChangeSeeds(`
 
 ## src/core/baseline.ts
 - L32 const `BASELINE_SCHEMA_VERSION`
@@ -125,21 +142,6 @@ Files: 44 source files scanned. Ranked by cross-file references.
 
 ## src/core/check.ts
 - L16 function `runChecks(config: CtxConfig, opts: CheckOptions = {})`
-
-## src/scorers/cochange.ts
-- L35 function `git(root: string, args: string[])`
-- L40 function `headCommit(root: string)`
-- L45 function `isShallow(root: string)`
-- L49 function `historyDepth(root: string)`
-- L60 function `coChangeAvailable(root: string)`
-- L70 interface `CacheEntry`
-- L79 function `cachePath(root: string)`
-- L83 function `readDiskCache(root: string)`
-- L96 function `writeDiskCache(root: string, entry: CacheEntry)`
-- L111 function `filteredCommits(root: string, limit: number)`
-- L136 function `seedColumnSums(seeds: string[], commits: string[][])`
-- L160 function `makeCoChangeScorer(seeds: string[])`
-- L184 function `coChangeSeeds(`
 
 ## src/core/retrieve.ts
 - L30 function `splitCompoundWord(word: string)`
@@ -290,9 +292,9 @@ Files: 44 source files scanned. Ranked by cross-file references.
 - L25 function `makeGitRepo(commits)`
 
 ## test/cochange.test.mjs
-- L22 function `git(cwd, args)`
-- L35 function `makeGitRepo(count, commitFn)`
-- L58 function `entriesFor(config, files)`
+- L24 function `git(cwd, args)`
+- L37 function `makeGitRepo(count, commitFn)`
+- L60 function `entriesFor(config, files)`
 
 ## test/mcp.test.mjs
 - L21 function `send(method, params)`
