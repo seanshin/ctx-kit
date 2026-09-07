@@ -11,6 +11,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { loadConfig, type CtxConfig } from "./core/config.js";
+import { VERSION } from "./core/version.js";
 import { readText, walkFiles } from "./core/fs.js";
 import { buildPack } from "./core/pack.js";
 import { buildRepoMap } from "./core/repomap.js";
@@ -32,7 +33,7 @@ function sourceFiles(config: CtxConfig): string[] {
 
 export async function startMcpServer(rootDir: string): Promise<void> {
   const config = loadConfig(rootDir);
-  const server = new McpServer({ name: "ctxkit", version: "0.2.0" });
+  const server = new McpServer({ name: "ctxkit", version: VERSION });
 
   server.registerTool(
     "get_rules",

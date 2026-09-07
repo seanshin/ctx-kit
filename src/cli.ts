@@ -4,6 +4,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Command } from "commander";
 import { CONFIG_FILE, GENERATED_DIR, loadConfig } from "./core/config.js";
+import { VERSION } from "./core/version.js";
 import { detectProject, renderAgents, renderConfig } from "./core/detect.js";
 import { runChecks } from "./core/check.js";
 import { getContext } from "./core/get.js";
@@ -18,7 +19,7 @@ const program = new Command();
 program
   .name("ctxkit")
   .description("Tool-neutral codebase context kit for AI coding agents")
-  .version("0.2.0")
+  .version(VERSION)
   .option("-C, --dir <path>", "target repository root", ".");
 
 function rootDir(): string {
