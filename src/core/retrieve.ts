@@ -36,20 +36,129 @@ function splitCompoundWord(word: string): string[] {
 }
 
 /**
+ * Tokens under this length are never stemmed — short words carry too little
+ * redundant suffix material to fold safely ("as", "is", "gas" losing a
+ * trailing "s" would just be wrong).
+ */
+const STEM_MIN_LEN = 4;
+
+/**
+ * A task-description query naturally lands on a different inflection than
+ * the identifier it should match ("scanning" vs. `Scans`, "secret" vs.
+ * `secrets`), so a handful of literal false positives sneak past every
+ * suffix rule below. These are the ones found by testing this stemmer
+ * against this repository's own prose — add to it if you find more, don't
+ * remove from it speculatively.
+ *
+ * "hundred" looks like a past participle ("hundr" + "ed") but is a number
+ * word. "anything"/"everything"/"nothing"/"something" are the closed set
+ * of "-thing" compounds that happen to clear the -ing length floor
+ * ("someth" is 6 letters, past the 4-letter no-doubling threshold) while
+ * not being a gerund of anything.
+ */
+const STEM_EXCEPTIONS = new Set([
+  "always", "hundred", "anything", "everything", "nothing", "something",
+]);
+
+/**
+ * Consonants that legitimately double before "-ing"/"-ed" when they follow
+ * a short stressed vowel (run -> running, stop -> stopped). Deliberately
+ * excludes "s" (process, address, class, access already end in a native
+ * "ss" and are guarded separately) and "l" (call, fall, install, pull,
+ * kill already end in a native "ll" — this repo's own prose uses
+ * "installed"/"calling"/"falling", and undoubling those would wrongly
+ * produce "instal"/"cal"/"fal").
+ */
+const DOUBLING_CONSONANTS = "bdgmnprt";
+
+/** Drop one letter of a final doubled consonant pair, if present. */
+function undoubleFinal(s: string): string {
+  const n = s.length;
+  if (n < 2) return s;
+  const last = s[n - 1];
+  return last === s[n - 2] && DOUBLING_CONSONANTS.includes(last) ? s.slice(0, -1) : s;
+}
+
+/**
+ * Fold a stripped "-ing"/"-ed" stem, deciding how far to trust it.
+ *
+ * If undoubling actually fired (running -> runn -> run), the doubled
+ * consonant is strong evidence of a genuine short-vowel gerund/participle,
+ * so even a 3-letter result is trusted. If it did not fire, the stem is
+ * accepted only at 4+ letters — this is what keeps native words that
+ * happen to end in "-ing" (string, spring, during, thing) from being
+ * chopped to "str"/"spr"/"dur": those never had a doubled consonant to
+ * begin with, so there is no positive evidence they are a verb form at
+ * all.
+ */
+function foldStrippedSuffix(original: string, bare: string): string {
+  const undoubled = undoubleFinal(bare);
+  const minLen = undoubled === bare ? 4 : 3;
+  return undoubled.length >= minLen ? undoubled : original;
+}
+
+/**
+ * Conservative English suffix folding — NOT Porter stemming. Handles only
+ * the three inflections that separate a task-description query from the
+ * identifier it should hit: plurals (-s/-es/-ies), gerunds (-ing) and
+ * participles (-ed). Explicitly skips nominalizations (-tion/-sion -> t/s
+ * was considered and rejected: "session" -> "sess", "nation" -> "nat" are
+ * real words already, so folding them collides with unrelated terms far
+ * more often than it helps).
+ *
+ * No dictionary, so silent-e verbs are a known gap: "generated"/"generate"
+ * and "included"/"include" do not meet in the middle (stripping "-ed"
+ * leaves "generat"/"includ", and there is no safe way to decide whether to
+ * add the "e" back without knowing the word). This under-stems rather than
+ * over-stems, which is the safer failure mode for a search index.
+ */
+export function stem(token: string): string {
+  if (token.length < STEM_MIN_LEN || STEM_EXCEPTIONS.has(token)) return token;
+
+  // identities -> identity, queries -> query
+  if (token.length > 4 && token.endsWith("ies")) return token.slice(0, -3) + "y";
+  // applied -> apply, tried -> try
+  if (token.length > 4 && token.endsWith("ied")) return token.slice(0, -3) + "y";
+  // matches -> match, boxes -> box, classes -> class: strip the "es" itself,
+  // not just a trailing "s". Deliberately requires the *doubled* "sses" —
+  // not a bare "ses" — because a bare "-ses" is ambiguous with an ordinary
+  // silent-e plural ("cases" is "case"+"s", not "cas"+"es"; "houses" is
+  // "house"+"s"). Those fall through to the plain -s rule below instead,
+  // which gets them right.
+  if (token.length > 4 && /(?:sses|xes|zes|ches|shes)$/.test(token)) return token.slice(0, -2);
+  // scanning -> scan, testing -> test, but not string/spring/during (see
+  // foldStrippedSuffix)
+  if (token.length > 4 && token.endsWith("ing")) return foldStrippedSuffix(token, token.slice(0, -3));
+  // scanned -> scan, detected -> detect, but not seed/need/exceed/agreed
+  if (token.length > 4 && token.endsWith("ed") && !token.endsWith("eed")) {
+    return foldStrippedSuffix(token, token.slice(0, -2));
+  }
+  // secrets -> secret, scans -> scan, but not class/process/address (native
+  // "ss") or status/focus/analysis (native "us"/"is"/"os" — a false plural
+  // fold there is a real word colliding with an unrelated one)
+  if (token.length > 3 && token.endsWith("s") && !token.endsWith("ss") && !/[uio]s$/.test(token)) {
+    return token.slice(0, -1);
+  }
+  return token;
+}
+
+/**
  * Tokenize text for BM25 indexing (identifiers) or querying (task
  * descriptions) — the same function is used on both sides so a query term
  * and an identifier collide on the same tokens.
  *
  * Latin-script runs: split on whitespace/punctuation (including `_`/`-`,
  * which sit outside the run pattern), split camelCase/PascalCase, lowercase,
- * drop stopwords and tokens under 2 characters.
+ * drop stopwords and tokens under 2 characters, then fold light English
+ * suffixes (see `stem`) so a query like "secret scanning" reaches the
+ * identifiers `secrets`/`Scans` without the caller having to guess the
+ * exact inflection that appears in the code.
  *
  * CJK runs are indexed as character bigrams instead — Lucene's CJKAnalyzer
  * technique, and the standard answer for Korean/Japanese/Chinese queries
- * without a morphological analyzer: 할인율을 ("the discount rate", with a
- * particle) and 할인율 (without it) both produce the bigram 할인, so a
- * particle change does not break the match. A lone leftover CJK character
- * (an odd-length run) is kept as-is rather than dropped.
+ * without a morphological analyzer: particle changes are absorbed the same
+ * way inflection is on the Latin side. Bigrams are never stemmed — the
+ * English suffix rules above do not apply to them.
  */
 export function tokenize(text: string): string[] {
   const tokens: string[] = [];
@@ -64,7 +173,7 @@ export function tokenize(text: string): string[] {
     }
     for (const piece of splitCompoundWord(run)) {
       const t = piece.toLowerCase();
-      if (t.length >= 2 && !STOPWORDS.has(t)) tokens.push(t);
+      if (t.length >= 2 && !STOPWORDS.has(t)) tokens.push(stem(t));
     }
   }
   return tokens;

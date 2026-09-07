@@ -10,7 +10,7 @@ import { join } from "node:path";
 import { loadConfig } from "../dist/core/config.js";
 import { rankFiles } from "../dist/core/repomap.js";
 import { buildPack, explainPack } from "../dist/core/pack.js";
-import { tokenize } from "../dist/core/retrieve.js";
+import { stem, tokenize } from "../dist/core/retrieve.js";
 import { makeQueryScorer } from "../dist/scorers/query.js";
 
 /** Scaffold a small polyglot repo and return its root + config. */
@@ -92,6 +92,55 @@ test("about: CJK bigrams survive a Korean particle change", () => {
   assert.ok(
     (contribution.get("src/discount.py") ?? 0) > (contribution.get("src/unrelated.py") ?? 0),
     "a query without the particle must still match the file that has it",
+  );
+});
+
+test("stem: plurals, gerunds and participles fold onto the same token as their identifier", () => {
+  // The motivating cases from the README/plan gap: a task-description query
+  // naturally lands on a different inflection than the identifier it should
+  // hit.
+  assert.equal(stem("secrets"), stem("secret"));
+  assert.equal(stem("scanning"), stem("scans")); // "Scans" lowercased
+  assert.equal(stem("ranking"), stem("ranks"));
+  assert.equal(stem("queries"), stem("query"));
+  assert.equal(stem("detected"), stem("detecting"));
+});
+
+test("stem: does not over-fold short tokens, native '-ing'/'-ss' words, or ambiguous silent-e plurals", () => {
+  // Guard: tokens under ~4 characters are never touched.
+  assert.equal(stem("gas"), "gas");
+  assert.equal(stem("is"), "is");
+  // Native "-ing" words with no doubled consonant to justify a fold —
+  // stripping "ing" would produce nonsense ("str", "dur") rather than a
+  // real root.
+  assert.equal(stem("string"), "string");
+  assert.equal(stem("during"), "during");
+  // "-thing" compounds clear the length floor but are not gerunds of
+  // anything; a native double-consonant word ("install"/"class") must not
+  // be undoubled into a different word.
+  assert.equal(stem("something"), "something");
+  assert.equal(stem("install"), "install");
+  assert.equal(stem("class"), "class");
+  // A bare "-ses" is ambiguous with an ordinary silent-e plural: "cases" is
+  // "case" + "s", not "cas" + "es".
+  assert.equal(stem("cases"), "case");
+  // A real double-s plural still folds correctly.
+  assert.equal(stem("classes"), "class");
+});
+
+test("about: an inflected query reaches a file only its identifier's other inflection names", () => {
+  const { config } = makeRepo({
+    // The path/symbol carries "secrets" (plural); the query below uses
+    // "scanning" (gerund of "scan") and no other unstemmed word in this
+    // file. Without folding, neither term would match.
+    "src/checks/secrets.py": "def scans_for_secrets():\n    return True\n",
+    "src/unrelated.py": "def helper():\n    return 1\n",
+  });
+  const files = rankFiles(config, { files: ["src/checks/secrets.py", "src/unrelated.py"] });
+  const contribution = makeQueryScorer("secret scanning")(files, config);
+  assert.ok(
+    (contribution.get("src/checks/secrets.py") ?? 0) > (contribution.get("src/unrelated.py") ?? 0),
+    "an inflected query must still reach the file whose identifiers use a different inflection",
   );
 });
 

@@ -245,8 +245,16 @@ ctxkit pack --about "…" --explain                    # why each file placed wh
 `--about` scores every file with BM25 over three fields — path (weight 3),
 symbol names (2) and body (1) — and adds it to the reference ranking. CJK text
 is indexed as character bigrams, so a Korean query survives particle changes
-(할인율을 still matches 할인율). There is no English stemming, so "secret" does
-not match the identifier `secrets`; use the word that appears in the code.
+(할인율을 still matches 할인율). English tokens get light suffix folding —
+plurals (`secrets` → `secret`), gerunds (`scanning` → `scan`) and participles
+(`detected` → `detect`) — so "secret scanning" reaches a file whose code says
+`Scans`/`secrets`, without requiring the exact inflection. It is conservative
+suffix stripping, not a dictionary: tokens under 4 characters are left alone,
+and silent-e verbs don't fully meet in the middle (`generated`/`generate`,
+`included`/`include` stem to `generat`/`includ`, which under-matches rather
+than risking a wrong one); nominalizations (`-tion`/`-sion`) are not folded
+at all, since `session` → `sess` and `nation` → `nat` collide with real words
+far more often than they help.
 
 `--diff` takes a git range or `--staged`. The changed files are *seeds*: they
 are never dropped for budget reasons, and if they alone exceed the budget the
