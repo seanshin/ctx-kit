@@ -12,21 +12,117 @@
 
 English: [README.md](README.md) · 백서: [WHITEPAPER.ko.md](docs/WHITEPAPER.ko.md) · 온보딩: [docs/onboarding.md](docs/onboarding.md)
 
+**목차** — **[사용방법](#사용방법)**: [설치](#설치) · [저장소 준비](#1단계-저장소-준비) · [초안 검증](#2단계-초안-두-개-검증) · [산출물 생성](#3단계-산출물-생성) · [AI 도구 연결](#4단계-ai-도구-연결) · [로컬 모델](#5단계-도구가-없는-모델에-먹이기) · [명령 요약](#명령-요약) · [일상 운용](#일상-운용) — **[배경](#배경)**: [왜](#왜) · [동작 방식](#동작-방식) — **[레퍼런스](#레퍼런스)**: [CLI](#cli-레퍼런스) · [설정](#설정-레퍼런스) · [MCP 도구](#mcp-도구-레퍼런스) · [프로파일](#프로파일-모델-계층별-제공) · [환경별](#환경별-설정) · [로컬 LLM](#소형-로컬-llm-활용) · [여러 저장소](#여러-저장소-전개) · [실측](#실측-결과) · [FAQ](#faq) · [설계 노트](#설계-노트) · [라이선스](#라이선스-태세)
+
+---
+
+# 사용방법
+
+## 설치
+
+Node 20 이상. 패키지에는 `dist/`와 `templates/`만 담긴다(약 21KB).
+
 ```sh
-npm i -g @seanshin/ctx-kit
-cd your-project && ctxkit init --auto && ctxkit map
+npm i -g @seanshin/ctx-kit      # 글로벌 설치 — 실행 파일명은 ctxkit
+npx -y @seanshin/ctx-kit <명령> # 설치 없이 바로 실행
+npm i -D @seanshin/ctx-kit      # 프로젝트 devDependency로
 ```
 
+## 1단계: 저장소 준비
+
+```sh
+cd your-project
+ctxkit init --auto --hooks
+```
+
+| 생성물 | 용도 |
+|---|---|
+| `AGENTS.md` | 규칙 초안. 빌드·테스트 명령은 `package.json`, `pytest.ini`/`pyproject.toml`, `Cargo.toml`, `go.mod`, `Makefile`에서 **자동 감지** |
+| `context.config.yaml` | 모듈 경계(소스 구조에서 자동 감지) + 소비 프로파일 |
+| `docs/context/`, `docs/generated/packs/` | 모듈 문서와 생성 산출물이 놓일 자리 |
+| `.git/hooks/pre-commit` | (`--hooks`) 커밋 시점에 `ctxkit check` 실행 — CI 없이 무료로 쓰는 게이트 |
+
+기존 `AGENTS.md` / `CLAUDE.md`는 **절대 덮어쓰지 않고** 건너뛴 것으로 보고한다.
+GitHub Actions 워크플로도 원하면 `--ci`를 추가한다(비공개 저장소는 Actions
+분량을 소모하므로, 같은 게이트를 무료로 쓰는 `--hooks`를 권장).
+
+## 2단계: 초안 두 개 검증
+
+유일한 수동 단계이자 품질을 결정하는 단계다:
+
+1. **`AGENTS.md`** — 감지된 명령이 실제로 도는지 확인하고, 코드가 에이전트에게
+   말해줄 수 없는 것을 채운다: 아키텍처 결정, 제약("할인율을 다른 곳에
+   인라인하지 말 것", "`legacy/`는 건드리지 말 것"), 도메인 용어집.
+   150줄 이하로 유지 — 초과하면 `ctxkit check`가 실패한다. 장황한 규칙 파일은
+   실측상 에이전트 성능을 떨어뜨리기 때문이다.
+2. **`context.config.yaml`** — 모듈 경계를 팀이 실제로 코드베이스를 사고하는
+   단위에 맞추고, 소음 경로(vendored 코드·마이그레이션·픽스처)를 `exclude`에
+   추가한다.
+
+## 3단계: 산출물 생성
+
+```sh
+ctxkit map                     # → docs/generated/repomap.md
+ctxkit pack --profile light    # → docs/generated/packs/all-light.md
+ctxkit sync                    # AGENTS.md → CLAUDE.md, .cursorrules, …
+ctxkit check                   # 게이트: 규칙·sync·신선도·시크릿
+```
+
+## 4단계: AI 도구 연결
+
+에이전트형 도구(Claude Code, Codex CLI, Cursor)는 MCP 서버를 한 번 등록한다:
+
+```json
+{ "mcpServers": { "ctxkit": { "command": "npx", "args": ["-y", "@seanshin/ctx-kit", "serve"] } } }
+```
+
+Claude Code는 `.mcp.json`, Codex CLI는 `config.toml`의 `mcp_servers`.
+`AGENTS.md`(및 `sync`가 만든 `CLAUDE.md`)는 설정 없이도 이들 도구가 자동으로
+읽는다.
+
+## 5단계: 도구가 없는 모델에 먹이기
+
+```sh
+ctxkit pack --profile light --module risk --stdout > /tmp/ctx.md
+ollama run qwen3:14b "$(cat /tmp/ctx.md)
+
+위 컨텍스트만 사용해서 답하라: 기본 재시도 간격은?"
+```
+
+또는 필요한 섹션만 뽑는 `ctxkit get <질의>`를 쓰거나,
+`docs/generated/packs/<모듈>-light.md`를 아무 챗창에나 붙여넣으면 된다.
+
+## 명령 요약
+
+| 명령 | 하는 일 | 산출물 |
+|---|---|---|
+| `ctxkit init [--auto] [--hooks] [--ci]` | 저장소 스캐폴딩 | `AGENTS.md`, `context.config.yaml`, 디렉토리, 훅 |
+| `ctxkit map [-b <토큰>]` | 교차 참조로 파일 랭킹, 심볼 아웃라인 | `docs/generated/repomap.md` |
+| `ctxkit pack [-p <프로파일>] [-m <모듈>]` | 토큰 예산 내로 컨텍스트 팩 조립 | `docs/generated/packs/…md` |
+| `ctxkit sync [--link] [--force]` | 단일 원본에서 규칙 배포 | `CLAUDE.md`, `.cursorrules`, … |
+| `ctxkit check [--max-rule-lines <n>]` | 게이트: 규칙 길이·sync·신선도·시크릿 | exit 0/1 |
+| `ctxkit get <질의>` | 해당 컨텍스트 섹션 출력 | stdout |
+| `ctxkit serve` | MCP 서버 실행(stdio) | 도구 5종 |
+
+문서를 출력하는 명령은 모두 `--stdout`을 받고, 어느 명령이든 `-C <경로>`로 다른
+저장소를 대상으로 실행할 수 있다. 플래그별 상세는 아래
+[CLI 레퍼런스](#cli-레퍼런스) 참조.
+
+## 일상 운용
+
+| 시점 | 실행 |
+|---|---|
+| 코드가 바뀌었을 때 | `ctxkit map` (맵이 오래되면 훅/CI가 경고한다) |
+| 규칙이 바뀌었을 때 | `AGENTS.md`를 고치고 `ctxkit sync` — `CLAUDE.md`를 직접 고치지 말 것 |
+| 커밋 전 | 할 일 없음: pre-commit 훅이 `ctxkit check`를 돌린다 |
+| 약한 모델에게 작업을 넘길 때 | `ctxkit pack --profile light --module <이름>` |
+| 다른 저장소 온보딩 | `ctxkit -C /path/to/repo init --auto --hooks` |
+
+10분 온보딩 체크리스트: [docs/onboarding.md](docs/onboarding.md).
+
 ---
 
-## 목차
-
-- [왜](#왜) · [동작 방식](#동작-방식) · [설치](#설치) · [빠른 시작](#빠른-시작)
-- 레퍼런스: [CLI](#cli-레퍼런스) · [설정](#설정-레퍼런스) · [MCP 도구](#mcp-도구-레퍼런스) · [프로파일](#프로파일-모델-계층별-제공)
-- 가이드: [환경별 설정](#환경별-설정) · [소형 로컬 LLM](#소형-로컬-llm-활용) · [여러 저장소 전개](#여러-저장소-전개)
-- [실측 결과](#실측-결과) · [FAQ](#faq) · [설계 노트](#설계-노트) · [라이선스 태세](#라이선스-태세)
-
----
+# 배경
 
 ## 왜
 
@@ -79,39 +175,9 @@ AI로 개발되는 저장소는 능력이 크게 다른 모델들이, 종종 같
 C는 곁가지가 아니라 바닥이다. 모든 기능은 반드시 일반 파일 산출물을 남기므로,
 MCP도 CLI도 없는 환경(챗창에 붙여넣는 사람 포함)까지 항상 지원된다.
 
-## 설치
-
-```sh
-npm i -g @seanshin/ctx-kit      # 글로벌; 실행 파일명은 ctxkit
-npx -y @seanshin/ctx-kit <명령> # 설치 없이 실행
-npm i -D @seanshin/ctx-kit      # 프로젝트 devDependency
-```
-
-Node 20 이상. 패키지에는 `dist/`와 `templates/`만 담긴다(약 21KB).
-
-## 빠른 시작
-
-```sh
-cd your-project
-
-ctxkit init --auto --hooks     # 스캐폴딩 + 무료 커밋 게이트 설치
-$EDITOR AGENTS.md              # 감지된 명령 검증, 제약 추가
-$EDITOR context.config.yaml    # 모듈 경계 조정
-
-ctxkit map                     # docs/generated/repomap.md
-ctxkit pack --profile light    # docs/generated/packs/all-light.md
-ctxkit sync                    # AGENTS.md → CLAUDE.md, .cursorrules, …
-ctxkit check                   # 게이트: 규칙·sync·신선도·시크릿
-```
-
-`init --auto`는 `package.json`, `pytest.ini`/`pyproject.toml`, `Cargo.toml`,
-`go.mod`, `Makefile`을 저장소 루트·직계 하위·컨테이너 디렉토리(`services/`,
-`apps/`, `packages/`, `crates/`, `src/`, `lib/`)에서 읽어 빌드/테스트 명령과 모듈 경계를
-채운다. 기존 `AGENTS.md`나 `CLAUDE.md`는 절대 덮어쓰지 않는다.
-
-새 저장소 10분 체크리스트: [docs/onboarding.md](docs/onboarding.md).
-
 ---
+
+# 레퍼런스
 
 ## CLI 레퍼런스
 

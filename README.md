@@ -12,21 +12,118 @@ CI, and as plain files for everything else.
 
 한국어: [README.ko.md](README.ko.md) · 백서: [WHITEPAPER.ko.md](docs/WHITEPAPER.ko.md) · Whitepaper: [WHITEPAPER.md](docs/WHITEPAPER.md)
 
+**Contents** — **[Usage](#usage)**: [install](#install) · [set up](#step-1-set-up-a-repository) · [verify](#step-2-verify-the-two-drafts) · [generate](#step-3-generate-the-artifacts) · [connect](#step-4-connect-your-ai-tools) · [feed a local model](#step-5-feed-a-model-that-has-no-tools) · [commands](#command-summary) · [day-to-day](#day-to-day) — **[Background](#background)**: [why](#why) · [how it works](#how-it-works) — **[Reference](#reference)**: [CLI](#cli-reference) · [config](#configuration-reference) · [MCP tools](#mcp-tool-reference) · [profiles](#profiles-serving-each-model-tier) · [per-environment](#per-environment-setup) · [local LLMs](#working-with-small-local-llms) · [cross-repo](#cross-repo-rollout) · [results](#measured-results) · [FAQ](#faq) · [design notes](#design-notes) · [license](#license-posture)
+
+---
+
+# Usage
+
+## Install
+
+Requires Node ≥ 20. The package ships `dist/` and `templates/` only (~21 KB).
+
 ```sh
-npm i -g @seanshin/ctx-kit
-cd your-project && ctxkit init --auto && ctxkit map
+npm i -g @seanshin/ctx-kit      # global install — the binary is `ctxkit`
+npx -y @seanshin/ctx-kit <cmd>  # or run without installing anything
+npm i -D @seanshin/ctx-kit      # or as a project dev dependency
 ```
 
+## Step 1: Set up a repository
+
+```sh
+cd your-project
+ctxkit init --auto --hooks
+```
+
+| Created | Purpose |
+|---|---|
+| `AGENTS.md` | Rules draft. Build/test commands are **auto-detected** from `package.json`, `pytest.ini`/`pyproject.toml`, `Cargo.toml`, `go.mod`, `Makefile` |
+| `context.config.yaml` | Module boundaries (auto-detected from source layout) + consumption profiles |
+| `docs/context/`, `docs/generated/packs/` | Where module docs and generated artifacts live |
+| `.git/hooks/pre-commit` | (`--hooks`) runs `ctxkit check` at commit time — the free alternative to CI |
+
+Existing `AGENTS.md` / `CLAUDE.md` files are **never overwritten** — they are
+reported as skipped. Add `--ci` if you also want a GitHub Actions workflow
+(consumes Actions minutes on private repos; `--hooks` covers the same gate for
+free).
+
+## Step 2: Verify the two drafts
+
+The only manual step, and the one that decides quality:
+
+1. **`AGENTS.md`** — confirm the detected commands actually run, then add what
+   code cannot tell an agent: architecture decisions, constraints ("never
+   inline discount rates", "don't touch `legacy/`"), and a domain glossary.
+   Keep it under 150 lines; `ctxkit check` fails past that, because verbose
+   rule files measurably degrade agent performance.
+2. **`context.config.yaml`** — adjust module boundaries to how your team
+   actually thinks about the codebase, and add noise paths (vendored code,
+   migrations, fixtures) to `exclude`.
+
+## Step 3: Generate the artifacts
+
+```sh
+ctxkit map                     # → docs/generated/repomap.md
+ctxkit pack --profile light    # → docs/generated/packs/all-light.md
+ctxkit sync                    # AGENTS.md → CLAUDE.md, .cursorrules, …
+ctxkit check                   # gate: rules, sync, staleness, secrets
+```
+
+## Step 4: Connect your AI tools
+
+Agentic tools (Claude Code, Codex CLI, Cursor) — register the MCP server once:
+
+```json
+{ "mcpServers": { "ctxkit": { "command": "npx", "args": ["-y", "@seanshin/ctx-kit", "serve"] } } }
+```
+
+`.mcp.json` for Claude Code, `mcp_servers` in `config.toml` for Codex CLI.
+`AGENTS.md` (and the `CLAUDE.md` produced by `sync`) is picked up natively by
+those tools with no configuration at all.
+
+## Step 5: Feed a model that has no tools
+
+```sh
+ctxkit pack --profile light --module risk --stdout > /tmp/ctx.md
+ollama run qwen3:14b "$(cat /tmp/ctx.md)
+
+Using only the context above: what is the default retry interval?"
+```
+
+Or `ctxkit get <query>` for just the relevant sections, or simply paste
+`docs/generated/packs/<module>-light.md` into any chat window.
+
+## Command summary
+
+| Command | What it does | Produces |
+|---|---|---|
+| `ctxkit init [--auto] [--hooks] [--ci]` | Scaffold a repository | `AGENTS.md`, `context.config.yaml`, dirs, hook |
+| `ctxkit map [-b <tokens>]` | Rank files by cross-file references, outline their symbols | `docs/generated/repomap.md` |
+| `ctxkit pack [-p <profile>] [-m <module>]` | Assemble a context pack within a token budget | `docs/generated/packs/…md` |
+| `ctxkit sync [--link] [--force]` | Distribute rules from the single source | `CLAUDE.md`, `.cursorrules`, … |
+| `ctxkit check [--max-rule-lines <n>]` | Gate: rule length, sync freshness, staleness, secrets | exit 0/1 |
+| `ctxkit get <query>` | Print matching context sections | stdout |
+| `ctxkit serve` | Run the MCP server (stdio) | 5 tools |
+
+Every command takes `--stdout` where output is a document, and `-C <path>` to
+run against another repository. Full flag-by-flag detail is in the
+[CLI reference](#cli-reference) below.
+
+## Day-to-day
+
+| When | Run |
+|---|---|
+| Code changed | `ctxkit map` (the hook/CI warns when the map is stale) |
+| Rules changed | edit `AGENTS.md`, then `ctxkit sync` — never edit `CLAUDE.md` directly |
+| Before committing | nothing: the pre-commit hook runs `ctxkit check` |
+| Handing work to a weaker model | `ctxkit pack --profile light --module <name>` |
+| Onboarding another repo | `ctxkit -C /path/to/repo init --auto --hooks` |
+
+The 10-minute onboarding checklist is [docs/onboarding.md](docs/onboarding.md).
+
 ---
 
-## Table of contents
-
-- [Why](#why) · [How it works](#how-it-works) · [Install](#install) · [Quickstart](#quickstart)
-- Reference: [CLI](#cli-reference) · [Config](#configuration-reference) · [MCP tools](#mcp-tool-reference) · [Profiles](#profiles-serving-each-model-tier)
-- Guides: [Per-environment setup](#per-environment-setup) · [Small local LLMs](#working-with-small-local-llms) · [Cross-repo rollout](#cross-repo-rollout)
-- [Measured results](#measured-results) · [FAQ](#faq) · [Design notes](#design-notes) · [License posture](#license-posture)
-
----
+# Background
 
 ## Why
 
@@ -83,41 +180,9 @@ Interface C is the floor, not an afterthought: every feature must leave a
 plain-file artifact, so an environment with neither MCP nor CLI — including a
 person pasting into a chat window — is still served.
 
-## Install
-
-```sh
-npm i -g @seanshin/ctx-kit      # global; binary is `ctxkit`
-npx -y @seanshin/ctx-kit <cmd>  # or run without installing
-npm i -D @seanshin/ctx-kit      # or per-project dev dependency
-```
-
-Requires Node ≥ 20. The package ships `dist/` and `templates/` only (~21 KB).
-
-## Quickstart
-
-```sh
-cd your-project
-
-ctxkit init --auto --hooks     # scaffold + install the free commit-time gate
-$EDITOR AGENTS.md              # verify the detected commands, add constraints
-$EDITOR context.config.yaml    # adjust module boundaries
-
-ctxkit map                     # docs/generated/repomap.md
-ctxkit pack --profile light    # docs/generated/packs/all-light.md
-ctxkit sync                    # AGENTS.md → CLAUDE.md, .cursorrules, …
-ctxkit check                   # gate: rules, sync, staleness, secrets
-```
-
-`init --auto` reads `package.json`, `pytest.ini`/`pyproject.toml`,
-`Cargo.toml`, `go.mod` and `Makefile` — at the repo root, in direct children,
-and inside container dirs (`services/`, `apps/`, `packages/`, `crates/`, `src/`, `lib/`) — to
-prefill build/test commands and module boundaries. It never overwrites an
-existing `AGENTS.md` or `CLAUDE.md`.
-
-The 10-minute checklist for a new repo is
-[docs/onboarding.md](docs/onboarding.md).
-
 ---
+
+# Reference
 
 ## CLI reference
 
