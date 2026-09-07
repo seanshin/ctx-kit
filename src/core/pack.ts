@@ -12,6 +12,7 @@ import { readText } from "./fs.js";
 import { buildRepoMap, rankFiles } from "./repomap.js";
 import { moduleFiles, select } from "./select.js";
 import { approxTokens } from "./tokens.js";
+import { makeQueryScorer } from "../scorers/query.js";
 
 export interface PackOptions {
   profile: string;
@@ -54,8 +55,13 @@ function targetFiles(config: CtxConfig, opts: PackOptions): string[] {
     about: opts.about,
     diff: opts.diff,
   });
+  // `--about` re-ranks the same candidates rather than filtering them
+  // (core/select.ts), so the query is applied here as a Scorer (plan §4.4,
+  // §8-B.2 seam). With no query this array is empty and `rankFiles` takes
+  // exactly the path it always did — no regression.
+  const scorers = opts.about ? [makeQueryScorer(opts.about)] : [];
   // Budget cuts drop the tail, so order by importance, not alphabet.
-  const ranked = rankFiles(config, { files: selection.files }).map((e) => e.rel);
+  const ranked = rankFiles(config, { files: selection.files, scorers }).map((e) => e.rel);
   // Seeds must survive the budget, so they lead.
   return [...selection.seeds, ...ranked.filter((r) => !selection.seeds.includes(r))];
 }
@@ -167,4 +173,49 @@ export function buildPack(config: CtxConfig, opts: PackOptions): PackResult {
 
   const relOutPath = join(GENERATED_DIR, "packs", `${opts.module ?? "all"}-${opts.profile}.md`);
   return { content: out, tokens: approxTokens(out), relOutPath };
+}
+
+export interface ExplainRow {
+  rel: string;
+  /** Cross-file reference score, before any scorer is applied. */
+  referenceScore: number;
+  /** Normalized, weighted query contribution (0 with no `--about`). */
+  queryScore: number;
+  /** `referenceScore + queryScore` — what `targetFiles` sorts by. */
+  finalScore: number;
+  /** Whether the file's body made it into the pack's Target Files section. */
+  included: boolean;
+}
+
+/**
+ * Score breakdown for `pack --about ... --explain` (plan §4.4): once a
+ * second scorer exists (co-change, §4.7) there is no other way to see why a
+ * file did or didn't make the cut. This recomputes the exact contributions
+ * `targetFiles` uses — same `select()` call, same `makeQueryScorer` — rather
+ * than approximating them, so the table never drifts from the real ranking.
+ *
+ * Lives here (not in `scorers/query.ts`, which stream B otherwise owns
+ * exclusively) because it needs `buildPack` itself to see which files
+ * survived the token budget, and `scorers/query.ts` importing back from
+ * `pack.ts` — which already imports `makeQueryScorer` from it — would make
+ * the two files a circular module dependency.
+ */
+export function explainPack(config: CtxConfig, opts: PackOptions): ExplainRow[] {
+  const selection = select(config, { module: opts.module, about: opts.about, diff: opts.diff });
+  const baseline = rankFiles(config, { files: selection.files });
+  const contribution = opts.about
+    ? makeQueryScorer(opts.about)(baseline, config)
+    : new Map<string, number>();
+
+  const rows = baseline.map((e) => {
+    const q = contribution.get(e.rel) ?? 0;
+    return { rel: e.rel, referenceScore: e.score, queryScore: q, finalScore: e.score + q };
+  });
+  rows.sort((a, b) => b.finalScore - a.finalScore || a.rel.localeCompare(b.rel));
+
+  const pack = buildPack(config, opts);
+  const targetSection = pack.content.split("## Target Files")[1] ?? "";
+  const included = new Set([...targetSection.matchAll(/^### (.+)$/gm)].map((m) => m[1].trim()));
+
+  return rows.slice(0, 20).map((r) => ({ ...r, included: included.has(r.rel) }));
 }

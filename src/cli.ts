@@ -8,7 +8,7 @@ import { VERSION } from "./core/version.js";
 import { detectProject, renderAgents, renderConfig } from "./core/detect.js";
 import { runChecks } from "./core/check.js";
 import { getContext } from "./core/get.js";
-import { buildPack } from "./core/pack.js";
+import { buildPack, explainPack, type ExplainRow } from "./core/pack.js";
 import { buildRepoMap } from "./core/repomap.js";
 import { syncRules } from "./core/sync.js";
 import { repomixAvailable, runRepomix } from "./adapters/repomix.js";
@@ -24,6 +24,26 @@ program
 
 function rootDir(): string {
   return resolve(program.opts<{ dir: string }>().dir);
+}
+
+/**
+ * `pack --explain` (plan §4.4): print the top-file score breakdown to
+ * stderr, so `--stdout` can still be piped for the pack content itself.
+ */
+function printExplain(rows: ExplainRow[]): void {
+  const col = (s: string, w: number) => (s.length > w ? s.slice(0, w - 1) + "…" : s.padEnd(w));
+  console.error(`\n--explain: top ${rows.length} file(s) by final score\n`);
+  console.error(col("file", 46) + col("reference", 11) + col("query", 11) + col("final", 11) + "included");
+  for (const r of rows) {
+    console.error(
+      col(r.rel, 46) +
+        col(r.referenceScore.toFixed(2), 11) +
+        col(r.queryScore.toFixed(2), 11) +
+        col(r.finalScore.toFixed(2), 11) +
+        (r.included ? "yes" : "no"),
+    );
+  }
+  console.error("");
 }
 
 function writeOutput(root: string, relPath: string, content: string, stdout: boolean): void {
@@ -139,9 +159,14 @@ program
       }
     }
     if (opts.explain) {
-      console.error("pack --explain is planned for 0.4.0 (docs/plan-v2.md §4.4)");
-      process.exitCode = 1;
-      return;
+      printExplain(
+        explainPack(config, {
+          profile: opts.profile,
+          module: opts.module,
+          about: opts.about,
+          diff: opts.diff,
+        }),
+      );
     }
     const pack = buildPack(config, {
       profile: opts.profile,
