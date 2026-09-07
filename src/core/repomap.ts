@@ -93,9 +93,22 @@ export function rankFiles(config: CtxConfig, opts: RankOptions = {}): RankedFile
     if (TEST_PATH_RE.test(entry.rel)) entry.score *= 0.2;
   }
 
-  for (const scorer of opts.scorers ?? []) {
-    const contribution = scorer(entries, config);
-    for (const entry of entries) entry.score += contribution.get(entry.rel) ?? 0;
+  const scorers = opts.scorers ?? [];
+  if (scorers.length > 0) {
+    // Normalize the reference score before adding scorer contributions.
+    // Raw reference scores span 0..~80 on a densely cross-referenced repo
+    // while a scorer contributes 0..weight, so an un-normalized base simply
+    // swamps the extra signal — measured: a query term moved a file by two
+    // places out of thirty. Normalization is monotonic, so the no-scorer
+    // path below keeps its exact ordering *and* its absolute values, which
+    // other callers (health checks) read.
+    const maxRef = Math.max(...entries.map((e) => e.score), 0);
+    if (maxRef > 0) for (const entry of entries) entry.score /= maxRef;
+
+    for (const scorer of scorers) {
+      const contribution = scorer(entries, config);
+      for (const entry of entries) entry.score += contribution.get(entry.rel) ?? 0;
+    }
   }
 
   entries.sort((a, b) => b.score - a.score || a.rel.localeCompare(b.rel));
