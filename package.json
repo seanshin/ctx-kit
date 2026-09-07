@@ -50,6 +50,7 @@
   "devDependencies": {
     "@types/node": "^22.10.0",
     "@types/picomatch": "^3.0.1",
+    "gpt-tokenizer": "^4.0.0",
     "typescript": "^5.7.0"
   }
 }
