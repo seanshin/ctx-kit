@@ -201,7 +201,10 @@ test("seams: select resolves modules and refuses unimplemented modes", () => {
   assert.deepEqual(sel.seeds, []);
   assert.equal(sel.label, "core");
   assert.deepEqual(select(config).label, "all");
-  assert.throws(() => select(config, { diff: "HEAD~1" }), /planned for 0\.4\.0/);
+  // select(diff) is implemented by stream D (src/select/diff.ts,
+  // test/diff.test.mjs); here we only confirm the seam degrades cleanly
+  // outside a git repository (root is a plain temp dir, not a repo).
+  assert.throws(() => select(config, { diff: "HEAD~1" }), /requires a git repository/);
   assert.throws(() => select(config, { module: "nope" }), /unknown module/);
 });
 
