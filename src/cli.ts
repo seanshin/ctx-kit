@@ -12,6 +12,17 @@ import { buildPack } from "./core/pack.js";
 import { buildRepoMap } from "./core/repomap.js";
 import { syncRules } from "./core/sync.js";
 import { repomixAvailable, runRepomix } from "./adapters/repomix.js";
+import {
+  DEFAULT_PROFILES as EVAL_DEFAULT_PROFILES,
+  DEFAULT_RESULTS_RELATIVE,
+  DEFAULT_TASKS_RELATIVE,
+  TASKS_TEMPLATE,
+  dryRunEval,
+  formatDryRunReport,
+  loadTasks,
+  parseModelsArg,
+  runModelEval,
+} from "./eval.js";
 
 const TEMPLATES_DIR = fileURLToPath(new URL("../templates/", import.meta.url));
 
@@ -230,12 +241,67 @@ program
   .option("-m, --module <name>", "restrict packs to a module")
   .option("--out <file>", "results file")
   .option("--yes", "skip the model-call confirmation")
-  .action(() => {
-    console.error(
-      "ctxkit eval is planned for 0.3.0 (docs/plan-v2.md §4.1).\n" +
-        "Until then use the bundled harness: node eval/run.mjs --help",
-    );
-    process.exitCode = 1;
+  .action((opts: {
+    init?: boolean; tasks?: string; dryRun?: boolean; profiles?: string;
+    models?: string; custom?: string; module?: string; out?: string; yes?: boolean;
+  }) => {
+    const config = loadConfig(rootDir());
+    const tasksPath = join(config.root, opts.tasks ?? DEFAULT_TASKS_RELATIVE);
+
+    if (opts.init) {
+      if (existsSync(tasksPath)) {
+        console.log(`skip ${opts.tasks ?? DEFAULT_TASKS_RELATIVE} (exists)`);
+        return;
+      }
+      mkdirSync(dirname(tasksPath), { recursive: true });
+      writeFileSync(tasksPath, TASKS_TEMPLATE);
+      console.log(`wrote ${opts.tasks ?? DEFAULT_TASKS_RELATIVE}`);
+      console.log(
+        `\nNext steps:\n` +
+          `  1. Replace the placeholders with real files/symbols from this repo.\n` +
+          `  2. ctxkit eval --dry-run                # free inclusion check\n` +
+          `  3. ctxkit eval --models haiku,sonnet     # calls models, asks to confirm`,
+      );
+      return;
+    }
+
+    if (!existsSync(tasksPath)) {
+      console.error(
+        `no task file at ${opts.tasks ?? DEFAULT_TASKS_RELATIVE} — run \`ctxkit eval --init\` first`,
+      );
+      process.exitCode = 1;
+      return;
+    }
+    const tasks = loadTasks(tasksPath);
+    const profiles = opts.profiles
+      ? opts.profiles.split(",").map((s) => s.trim()).filter(Boolean)
+      : EVAL_DEFAULT_PROFILES;
+
+    if (opts.dryRun) {
+      const report = dryRunEval(config, tasks, { profiles, module: opts.module });
+      const rendered = formatDryRunReport(report);
+      if (opts.out) {
+        const outPath = join(config.root, opts.out);
+        mkdirSync(dirname(outPath), { recursive: true });
+        writeFileSync(outPath, rendered);
+        console.log(`wrote ${opts.out}`);
+      } else {
+        console.log(rendered);
+      }
+      return;
+    }
+
+    const models = parseModelsArg(opts.models, opts.custom);
+    const outFile = join(config.root, opts.out ?? DEFAULT_RESULTS_RELATIVE);
+    mkdirSync(dirname(outFile), { recursive: true });
+    const result = runModelEval(config, tasks, {
+      profiles,
+      models,
+      module: opts.module,
+      outFile,
+      yes: opts.yes,
+    });
+    if (!result) process.exitCode = 1;
   });
 
 program
