@@ -3,6 +3,7 @@ version: 1
 
 modules:
   core:       ["src/core/**"]        # tool-neutral logic: config, rank, pack, sync, check
+  checks:     ["src/checks/**"]      # gate items: rules, sync, repomap, secrets, health, rot
   adapters:   ["src/adapters/**"]    # symbol extraction + external-tool wrappers
   interfaces: ["src/cli.ts", "src/mcp.ts"]
   eval:       ["eval/**"]            # measurement harness, fixture, findings
@@ -10,6 +11,15 @@ modules:
 
 exclude:
   - "eval/fixture/**"                # deliberately trivial code; noise in the map
+
+# Machine-checked rules from AGENTS.md's Constraints section (plan-v2 §4.2).
+constraints:
+  - id: version-single-source
+    symbol: "VERSION"
+    only_in: ["src/core/version.ts"]
+  - id: version-no-hardcode
+    forbid_pattern: 'version\s*[:=]\s*"\d+\.\d+\.\d+"'
+    in: ["src/cli.ts", "src/mcp.ts"]
 
 profiles:
   frontier: { inject: [agents], budget: 4000 }

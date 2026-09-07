@@ -7,6 +7,7 @@ import { CONFIG_FILE, GENERATED_DIR, loadConfig } from "./core/config.js";
 import { VERSION } from "./core/version.js";
 import { detectProject, renderAgents, renderConfig } from "./core/detect.js";
 import { runChecks } from "./core/check.js";
+import { applyBaseline, readBaseline, toBaselineEntries, writeBaseline } from "./core/baseline.js";
 import { getContext } from "./core/get.js";
 import { buildPack } from "./core/pack.js";
 import { buildRepoMap } from "./core/repomap.js";
@@ -194,19 +195,22 @@ program
   .option("--no-baseline", "report every violation, ignoring the recorded baseline (planned: 0.3.1)")
   .action((opts: { maxRuleLines: string; runCommands?: boolean; updateBaseline?: boolean; baseline?: boolean }) => {
     const config = loadConfig(rootDir());
-    if (opts.updateBaseline) {
-      console.error("check --update-baseline is planned for 0.3.1 (docs/plan-v2.md §4.2)");
-      process.exitCode = 1;
-      return;
-    }
+    const noBaseline = opts.baseline === false;
     const results = runChecks(config, {
       maxRuleLines: Number(opts.maxRuleLines),
       runCommands: opts.runCommands,
-      noBaseline: opts.baseline === false,
+      noBaseline,
     });
+    if (opts.updateBaseline) {
+      const entries = toBaselineEntries(results);
+      writeBaseline(config.root, entries);
+      console.log(`wrote ${GENERATED_DIR}/baseline.json (${entries.length} known violation(s) recorded)`);
+      return;
+    }
+    const reported = noBaseline ? results : applyBaseline(results, readBaseline(config.root));
     const icon = { ok: "✓", warn: "!", fail: "✗" } as const;
-    for (const r of results) console.log(`${icon[r.level]} [${r.name}] ${r.detail}`);
-    const fails = results.filter((r) => r.level === "fail").length;
+    for (const r of reported) console.log(`${icon[r.level]} [${r.name}] ${r.detail}`);
+    const fails = reported.filter((r) => r.level === "fail").length;
     if (fails > 0) {
       console.error(`\n${fails} check(s) failed`);
       process.exitCode = 1;

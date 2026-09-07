@@ -9,7 +9,9 @@ import { rulesCheck } from "./rules.js";
 import { syncCheck } from "./sync.js";
 import { repomapCheck } from "./repomap.js";
 import { secretsCheck } from "./secrets.js";
+import { healthCheck } from "./health.js";
+import { rotCheck } from "./rot.js";
 
-export const CHECKS: Check[] = [rulesCheck, syncCheck, repomapCheck, secretsCheck];
+export const CHECKS: Check[] = [rulesCheck, syncCheck, repomapCheck, secretsCheck, healthCheck, rotCheck];
 
 export type { Check, CheckContext, CheckOptions, CheckResult } from "./types.js";

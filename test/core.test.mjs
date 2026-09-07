@@ -220,7 +220,7 @@ test("seams: config exposes v2 defaults without a config file", () => {
 test("seams: every registered check runs, and one crash cannot hide the rest", () => {
   const { config } = makeRepo();
   const names = new Set(CHECKS.map((c) => c.name));
-  assert.deepEqual([...names].sort(), ["agents-length", "repomap", "secrets", "sync"]);
+  assert.deepEqual([...names].sort(), ["agents-length", "health", "repomap", "rot", "secrets", "sync"]);
   const results = runChecks(config);
   for (const n of ["agents-length", "sync", "repomap", "secrets"]) {
     assert.ok(results.some((r) => r.name === n), `${n} did not report`);

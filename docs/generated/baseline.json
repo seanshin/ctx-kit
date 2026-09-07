@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "check": "repomap",
+      "identifier": "eval/run.mjs newer than repomap.md — run `ctxkit map`"
+    },
+    {
+      "check": "duplicate",
+      "identifier": "\"escapeRegExp\" defined identically in src/mcp.ts, src/core/repomap.ts"
+    },
+    {
+      "check": "orphan",
+      "identifier": "src/core/git.ts has zero external references"
+    },
+    {
+      "check": "rot-path",
+      "identifier": "AGENTS.md:17 references \"core/\", which does not exist"
+    },
+    {
+      "check": "rot-path",
+      "identifier": "AGENTS.md:32 references \"core/repomap.ts\", which does not exist"
+    },
+    {
+      "check": "rot-path",
+      "identifier": "AGENTS.md:33 references \"adapters/repomix.ts\", which does not exist"
+    },
+    {
+      "check": "rot-path",
+      "identifier": "AGENTS.md:36 references \"core/version.ts\", which does not exist"
+    },
+    {
+      "check": "rot-path",
+      "identifier": "AGENTS.md:36 references \"cli.ts\", which does not exist"
+    },
+    {
+      "check": "rot-path",
+      "identifier": "AGENTS.md:36 references \"mcp.ts\", which does not exist"
+    },
+    {
+      "check": "rot-path",
+      "identifier": "AGENTS.md:40 references \"eval/twin-tasks.yaml\", which does not exist"
+    },
+    {
+      "check": "rot-path",
+      "identifier": "AGENTS.md:41 references \"eval/results-twin.md\", which does not exist"
+    },
+    {
+      "check": "rot-path",
+      "identifier": "AGENTS.md:46 references \"core/pack.ts\", which does not exist"
+    },
+    {
+      "check": "rot-path",
+      "identifier": "AGENTS.md:46 references \"core/repomap.ts\", which does not exist"
+    },
+    {
+      "check": "rot-path",
+      "identifier": "AGENTS.md:56 references \"repomap.md\", which does not exist"
+    }
+  ]
+}
