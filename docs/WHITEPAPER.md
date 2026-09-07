@@ -45,9 +45,11 @@ not by degree but in kind:
 
 ### 2.2 Context files are being written badly at scale
 
-A published evaluation of LLM-generated agent-instruction files across 138
-repositories found they *reduced* agent task success while raising inference
-cost by over 20%. The failure is not the convention but the content: generated
+An evaluation of repository context files on 138 tasks across 12 repositories
+(Gloaguen et al., ETH Zurich, 2026 — [arXiv:2602.11988](https://arxiv.org/abs/2602.11988))
+found that LLM-generated files *reduced* agent task success (−3%) while
+raising inference cost by over 20%, and that even developer-written files
+helped only marginally (+4%). The failure is not the convention but the content: generated
 rule files restate what a linter enforces, list files the agent can see, and
 bury the two or three facts that actually matter. Any system that automates
 rule authoring must therefore constrain length and restrict content to what
@@ -326,16 +328,53 @@ protocol, so wrapping would add a client implementation for no benefit.
 
 ## 10. Related work
 
-**AGENTS.md** (Linux Foundation) standardizes the rule file this project
-treats as its source of truth. **aider** pioneered ranked repository maps with
-tree-sitter and PageRank; ctx-kit reimplements a simplified ranking
-independently. **Repomix** and **code2prompt** (both MIT) pack repositories
-into single prompts — complementary, and Repomix is supported as an optional
-backend. **Serena** (MIT) provides LSP-grade semantic retrieval over MCP and
-covers the semantic end ctx-kit's outline extractor deliberately does not.
-**Ruler** and similar tools distribute rules to many assistants; ctx-kit
-implements the common subset internally with zero dependencies, keeping the
-adapter slot open.
+An annotated bibliography with licenses and per-item relevance is maintained
+in [references.md](references.md) (Korean); the main threads are:
+
+**Context files.** Gloaguen et al. (ETH Zurich / LogicStar, 2026,
+[arXiv:2602.11988](https://arxiv.org/abs/2602.11988)) evaluated repository
+context files on 138 tasks across 12 repositories: developer-written files
+helped marginally (+4%), LLM-generated ones hurt (−3%), and both raised
+inference cost by over 20%. This is the evidence behind the 150-line gate and
+behind `init --auto` prefilling only manifest facts. The
+[AGENTS.md](https://agents.md) convention (Linux Foundation) is the format.
+Anthropic's [context-engineering guidance](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents)
+(2025) describes the just-in-time pattern — lightweight identifiers up front,
+content fetched on demand — that the `frontier` profile implements.
+
+**Localization and retrieval.** Agentless (Xia et al. 2024,
+[arXiv:2407.01489](https://arxiv.org/abs/2407.01489), MIT) showed that a
+hierarchical file → function → edit localization over a compressed repository
+outline is competitive with full agents; ctx-kit's tiers mirror that
+hierarchy. SWE-agent (Yang et al., NeurIPS 2024,
+[arXiv:2405.15793](https://arxiv.org/abs/2405.15793), MIT) established that
+interface design for LM agents — simplicity, compactness, guardrails —
+materially changes outcomes, which is why the MCP surface is held at five
+tools. BM25 remains the file-localization baseline in SWE-bench-derived work
+(Top-30 recall ≈ 88% on SWE-bench Verified), the quantitative basis for both
+the query-directed pack design and the decision not to add embeddings.
+RepoGraph (ICLR 2025, Apache-2.0) and aider's tree-sitter + PageRank maps
+(Apache-2.0) are algorithmic references only.
+
+**History as signal.** Zimmermann et al. (ICSE 2004 / TSE 2005) showed that
+version-history association rules surface coupling that program analysis
+cannot see; that is the basis and the acceptance test for co-change ranking.
+
+**Repository health.** Architecture fitness functions — dependency-cruiser
+(MIT), import-linter (BSD-2), ArchUnit (Apache-2.0) — and dead/duplicate code
+tools — knip (ISC), vulture (MIT), jscpd (MIT) — are the established
+precedent for the constraint and drift checks planned in v2.1; ctx-kit's
+versions are deliberately language-neutral reductions with adapter slots.
+
+**Long context.** Liu et al. (TACL 2024,
+[arXiv:2307.03172](https://arxiv.org/abs/2307.03172)) documented the
+lost-in-the-middle recall curve behind the front-and-tail rule placement.
+
+**Packing and distribution.** Repomix and code2prompt (MIT) pack repositories
+into single prompts and are complementary (Repomix is an optional backend);
+Serena (MIT) provides LSP-grade retrieval over MCP and is registered
+alongside; Ruler (MIT) distributes rules to 30+ assistants, of which `sync`
+implements the common subset with zero dependencies.
 
 What is new here is not any single component but the composition: capability
 profiles as a first-class config object, three interfaces over one core with

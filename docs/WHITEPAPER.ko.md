@@ -39,8 +39,10 @@ ctx-kit은 프로젝트 컨텍스트의 단일 원본을 유지하고 거기서 
 
 ### 2.2 컨텍스트 파일이 대규모로 잘못 쓰이고 있다
 
-138개 저장소를 대상으로 한 공개 평가에서, LLM이 생성한 에이전트 지침 파일은
-과제 성공률을 *낮추면서* 추론 비용을 20% 이상 올렸다. 문제는 표준이 아니라
+12개 저장소 138개 과제 대상 평가(Gloaguen 외, ETH Zurich, 2026 —
+[arXiv:2602.11988](https://arxiv.org/abs/2602.11988))에서 LLM이 생성한 컨텍스트
+파일은 과제 성공률을 *낮추면서*(−3%) 추론 비용을 20% 이상 올렸고, 개발자가 직접 쓴
+파일조차 미미하게만(+4%) 도움이 됐다. 문제는 표준이 아니라
 내용이다 — 생성된 규칙 파일은 린터가 강제하는 것을 반복하고, 에이전트가 이미
 볼 수 있는 파일 목록을 나열하며, 정작 중요한 두세 가지 사실을 파묻는다. 규칙
 작성을 자동화하는 시스템은 반드시 길이를 제약하고 내용을 "코드가 표현할 수
@@ -290,18 +292,43 @@ Serena를 뒤가 아니라 옆에 두는 것은 라이선스이자 아키텍처 
 
 ## 10. 관련 작업
 
-**AGENTS.md**(Linux Foundation)는 이 프로젝트가 진실의 원본으로 삼는 규칙
-파일을 표준화했다. **aider**는 tree-sitter와 PageRank로 랭킹된 리포맵을
-개척했고, ctx-kit은 단순화된 랭킹을 독립 구현했다. **Repomix**와
-**code2prompt**(둘 다 MIT)는 저장소를 단일 프롬프트로 패킹하며 — 상호 보완적이고
-Repomix는 선택적 백엔드로 지원된다. **Serena**(MIT)는 MCP로 LSP급 의미 검색을
-제공해 ctx-kit의 아웃라인 추출기가 의도적으로 다루지 않는 영역을 담당한다.
-**Ruler** 등은 규칙을 여러 어시스턴트에 배포하며, ctx-kit의 `sync`는 그 공통
-부분집합을 무의존으로 내부 구현하고 어댑터 자리를 열어뒀다.
+라이선스와 항목별 관련성을 단 참고 자료집은 [references.md](references.md)에
+유지한다. 주요 갈래:
 
-여기서 새로운 것은 개별 구성요소가 아니라 조합이다 — 일급 설정 객체로서의 능력
-프로파일, 파일을 보장된 바닥으로 삼는 코어 하나 위의 3인터페이스, 그리고
-프로파일 선택을 취향이 아닌 실증의 문제로 만드는 평가 하네스.
+**컨텍스트 파일.** Gloaguen 외(ETH Zurich / LogicStar, 2026,
+[arXiv:2602.11988](https://arxiv.org/abs/2602.11988))는 12개 저장소 138개 과제에서
+저장소 컨텍스트 파일을 평가했다 — 개발자 작성 파일은 미미하게 도움(+4%), LLM 생성
+파일은 해로움(−3%), 양쪽 모두 추론 비용 +20% 이상. 150줄 게이트와 `init --auto`가
+manifest 사실만 채우는 근거다. 포맷은 [AGENTS.md](https://agents.md) 표준(Linux
+Foundation). Anthropic의 [컨텍스트 엔지니어링 지침](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents)(2025)이
+설명하는 just-in-time 패턴 — 가벼운 식별자를 앞에, 내용은 필요할 때 — 을 `frontier`
+프로파일이 구현한다.
+
+**위치 찾기와 검색.** Agentless(Xia 외 2024, [arXiv:2407.01489](https://arxiv.org/abs/2407.01489),
+MIT)는 압축된 저장소 개요 위의 계층적 위치 찾기(파일→함수→편집 지점)가 완전한
+에이전트와 경쟁력 있음을 보였다 — ctx-kit의 계층이 그 구조를 반영한다.
+SWE-agent(Yang 외, NeurIPS 2024, [arXiv:2405.15793](https://arxiv.org/abs/2405.15793),
+MIT)는 LM 에이전트를 위한 인터페이스 설계(단순성·간결성·가드레일)가 결과를 실질적으로
+바꿈을 확립했다 — MCP 표면을 도구 5종으로 고정하는 이유다. BM25는 SWE-bench 계열
+연구의 파일 위치 찾기 기준선(SWE-bench Verified에서 Top-30 재현율 ≈ 88%)이며,
+질의 기반 팩 설계와 임베딩 비도입 결정의 정량 근거다. RepoGraph(ICLR 2025,
+Apache-2.0)와 aider의 tree-sitter+PageRank 맵(Apache-2.0)은 알고리즘 참고만.
+
+**신호로서의 이력.** Zimmermann 외(ICSE 2004 / TSE 2005)는 버전 이력의 연관 규칙이
+프로그램 분석이 못 보는 결합을 드러냄을 보였다 — 공변경 랭킹의 근거이자 채택 기준.
+
+**저장소 건강.** 아키텍처 피트니스 함수 — dependency-cruiser(MIT), import-linter
+(BSD-2), ArchUnit(Apache-2.0) — 와 죽은/중복 코드 도구 — knip(ISC), vulture(MIT),
+jscpd(MIT) — 는 v2.1에 계획된 제약·드리프트 검사의 확립된 선례다. ctx-kit의 버전은
+의도적으로 언어 중립 축소판이며 어댑터 자리를 둔다.
+
+**긴 컨텍스트.** Liu 외(TACL 2024, [arXiv:2307.03172](https://arxiv.org/abs/2307.03172))가
+문서화한 lost-in-the-middle 회상 곡선이 규칙의 앞·뒤 배치의 근거다.
+
+**패킹과 배포.** Repomix와 code2prompt(MIT)는 저장소를 단일 프롬프트로 패킹하며
+상호 보완적이다(Repomix는 선택적 백엔드). Serena(MIT)는 MCP로 LSP급 검색을 제공하며
+나란히 등록한다. Ruler(MIT)는 30+ 어시스턴트에 규칙을 배포하며 `sync`는 그 공통
+부분집합을 무의존으로 구현한다.
 
 ## 11. 한계와 로드맵
 
