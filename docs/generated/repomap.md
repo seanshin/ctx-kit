@@ -1,7 +1,7 @@
-<!-- ctxkit:v1 repomap generated=2026-09-07T08:31:50.533Z budget=8000 -->
+<!-- ctxkit:v1 repomap generated=2026-09-07T08:35:58.345Z budget=8000 -->
 # Repository Map
 
-Files: 41 source files scanned. Ranked by cross-file references.
+Files: 44 source files scanned. Ranked by cross-file references.
 
 ## src/core/config.ts
 - L5 const `CONFIG_FILE`
@@ -12,14 +12,16 @@ Files: 41 source files scanned. Ranked by cross-file references.
 - L23 interface `Constraint`
 - L37 interface `HealthConfig`
 - L46 interface `RankingConfig`
-- L55 interface `CtxConfig`
-- L71 const `DEFAULT_HEALTH`
-- L78 const `DEFAULT_RANKING`
-- L85 const `BASELINE_FILE`
-- L87 const `DEFAULT_PROFILES`
-- L93 const `BUILTIN_IGNORE_DIRS`
-- L109 function `findConfig(startDir: string)`
-- L120 function `loadConfig(rootDir: string)`
+- L56 interface `RotConfig`
+- L69 interface `CtxConfig`
+- L86 const `DEFAULT_HEALTH`
+- L93 const `DEFAULT_RANKING`
+- L99 const `DEFAULT_ROT`
+- L104 const `BASELINE_FILE`
+- L106 const `DEFAULT_PROFILES`
+- L112 const `BUILTIN_IGNORE_DIRS`
+- L128 function `findConfig(startDir: string)`
+- L139 function `loadConfig(rootDir: string)`
 
 ## src/mcp.ts
 - L22 function `text(s: string)`
@@ -53,12 +55,6 @@ Files: 41 source files scanned. Ranked by cross-file references.
 - L350 function `runModelEval(`
 - L388 function `answer`
 
-## src/checks/types.ts
-- L9 interface `CheckResult`
-- L15 interface `CheckOptions`
-- L23 interface `CheckContext`
-- L34 interface `Check`
-
 ## src/core/repomap.ts
 - L16 interface `RepoMapOptions`
 - L24 interface `RankedFile`
@@ -66,6 +62,12 @@ Files: 41 source files scanned. Ranked by cross-file references.
 - L52 interface `RankOptions`
 - L63 function `rankFiles(config: CtxConfig, opts: RankOptions = {})`
 - L124 function `buildRepoMap(config: CtxConfig, opts: RepoMapOptions = {})`
+
+## src/checks/types.ts
+- L9 interface `CheckResult`
+- L36 interface `CheckOptions`
+- L44 interface `CheckContext`
+- L55 interface `Check`
 
 ## eval/run.mjs
 - L40 function `argVal`
@@ -77,30 +79,6 @@ Files: 41 source files scanned. Ranked by cross-file references.
 - L25 function `visit`
 - L57 function `readText(root: string, rel: string)`
 
-## src/adapters/symbols.ts
-- L10 interface `CodeSymbol`
-- L24 const `SOURCE_EXTENSIONS`
-- L30 interface `Rule`
-- L91 function `extractSymbols(relPath: string, content: string)`
-
-## src/core/pack.ts
-- L17 interface `PackOptions`
-- L26 interface `PackResult`
-- L43 function `readAgents(config: CtxConfig)`
-- L48 function `agentsSummary(agents: string, maxLines = 40)`
-- L52 function `fileBlock(config: CtxConfig, rel: string)`
-- L60 function `targetFiles(config: CtxConfig, opts: PackOptions)`
-- L78 function `buildPack(config: CtxConfig, opts: PackOptions)`
-- L226 interface `ExplainRow`
-- L251 function `explainPack(config: CtxConfig, opts: PackOptions)`
-- L263 function `shownRef`
-
-## src/core/tokens.ts
-- L34 function `isCJK(codePoint: number)`
-- L56 function `setTokenCounter(fn: (text: string)`
-- L60 function `approxTokens(text: string)`
-- L64 function `heuristicTokens(text: string)`
-
 ## src/core/select.ts
 - L17 interface `SelectOptions`
 - L26 interface `Selection`
@@ -108,8 +86,60 @@ Files: 41 source files scanned. Ranked by cross-file references.
 - L47 function `allSourceFiles(config: CtxConfig)`
 - L53 function `select(config: CtxConfig, opts: SelectOptions = {})`
 
+## src/adapters/symbols.ts
+- L10 interface `CodeSymbol`
+- L24 const `SOURCE_EXTENSIONS`
+- L30 interface `Rule`
+- L91 function `extractSymbols(relPath: string, content: string)`
+
+## src/core/pack.ts
+- L18 interface `PackOptions`
+- L27 interface `PackResult`
+- L44 function `readAgents(config: CtxConfig)`
+- L49 function `agentsSummary(agents: string, maxLines = 40)`
+- L53 function `fileBlock(config: CtxConfig, rel: string)`
+- L67 function `assembleScorers(`
+- L81 function `targetFiles(config: CtxConfig, opts: PackOptions)`
+- L99 function `buildPack(config: CtxConfig, opts: PackOptions)`
+- L247 interface `ExplainRow`
+- L272 function `explainPack(config: CtxConfig, opts: PackOptions)`
+- L284 function `shownRef`
+
+## src/core/tokens.ts
+- L34 function `isCJK(codePoint: number)`
+- L56 function `setTokenCounter(fn: (text: string)`
+- L60 function `approxTokens(text: string)`
+- L64 function `heuristicTokens(text: string)`
+
+## src/core/baseline.ts
+- L32 const `BASELINE_SCHEMA_VERSION`
+- L34 interface `BaselineEntry`
+- L44 interface `BaselineFile`
+- L49 function `baselinePath(root: string)`
+- L61 function `readBaseline(root: string)`
+- L72 function `writeBaseline(root: string, entries: BaselineEntry[])`
+- L87 function `entryKey(e: { check: string; location?: { file: string; line?: number }; subject?: string; identifier?: string })`
+- L94 function `resultKey(r: CheckResult)`
+- L105 function `toBaselineEntries(results: CheckResult[])`
+- L121 function `applyBaseline(results: CheckResult[], baseline: BaselineEntry[])`
+
 ## src/core/check.ts
-- L14 function `runChecks(config: CtxConfig, opts: CheckOptions = {})`
+- L16 function `runChecks(config: CtxConfig, opts: CheckOptions = {})`
+
+## src/scorers/cochange.ts
+- L35 function `git(root: string, args: string[])`
+- L40 function `headCommit(root: string)`
+- L45 function `isShallow(root: string)`
+- L49 function `historyDepth(root: string)`
+- L60 function `coChangeAvailable(root: string)`
+- L70 interface `CacheEntry`
+- L79 function `cachePath(root: string)`
+- L83 function `readDiskCache(root: string)`
+- L96 function `writeDiskCache(root: string, entry: CacheEntry)`
+- L111 function `filteredCommits(root: string, limit: number)`
+- L136 function `seedColumnSums(seeds: string[], commits: string[][])`
+- L160 function `makeCoChangeScorer(seeds: string[])`
+- L184 function `coChangeSeeds(`
 
 ## src/core/retrieve.ts
 - L30 function `splitCompoundWord(word: string)`
@@ -160,6 +190,12 @@ Files: 41 source files scanned. Ranked by cross-file references.
 - L104 function `renderConfig(detected: Detected)`
 - L129 function `renderAgents(detected: Detected)`
 
+## src/core/git.ts
+- L10 function `git(root: string, args: string[])`
+- L15 function `isRepo(root: string)`
+- L26 function `diffFiles(root: string, range: string)`
+- L39 function `logCommits(root: string, limit = 500)`
+
 ## src/scorers/query.ts
 - L25 function `scoreQuery(files: RankedFile[], config: CtxConfig, query: string)`
 - L66 function `makeQueryScorer(query: string)`
@@ -182,49 +218,44 @@ Files: 41 source files scanned. Ranked by cross-file references.
 - L2 function `escapeRegExp(s: string)`
 
 ## src/checks/health.ts
-- L22 function `resultLevel(configured: Level)`
-- L36 function `isEntryPoint(rel: string)`
-- L42 function `isDunder(name: string)`
-- L46 function `normalizeSignature(sig: string)`
-- L53 function `reEscape(s: string)`
-- L61 function `checkConstraints(config: CtxConfig, entries: RankedFile[])`
-- L146 interface `SymOcc`
-- L158 function `findDuplicates(entries: RankedFile[])`
-- L210 function `findReferencedFiles(entries: RankedFile[], contents: Map<string, string>)`
-- L231 interface `OrphanResult`
-- L236 function `findOrphans(config: CtxConfig, entries: RankedFile[], referenced: Set<string>)`
-- L262 function `findUncovered(config: CtxConfig, entries: RankedFile[])`
-- L271 const `healthCheck`
+- L26 function `isEntryPoint(rel: string)`
+- L32 function `isDunder(name: string)`
+- L36 function `normalizeSignature(sig: string)`
+- L43 function `reEscape(s: string)`
+- L51 function `checkConstraints(config: CtxConfig, entries: RankedFile[])`
+- L143 interface `SymOcc`
+- L155 function `findDuplicates(entries: RankedFile[])`
+- L207 function `findReferencedFiles(entries: RankedFile[], contents: Map<string, string>)`
+- L228 interface `OrphanResult`
+- L233 function `findOrphans(config: CtxConfig, entries: RankedFile[], referenced: Set<string>)`
+- L259 function `findUncovered(config: CtxConfig, entries: RankedFile[])`
+- L268 const `healthCheck`
 
 ## src/checks/rot.ts
 - L30 function `stripFences(content: string)`
 - L46 function `commandSectionLines(lines: string[])`
 - L60 interface `Backtick`
-- L65 function `extractBackticks(lines: string[])`
-- L75 function `isPathCandidate(text: string)`
-- L83 function `isGlob(text: string)`
-- L87 function `pathExists(root: string, allFiles: string[], candidate: string)`
-- L95 function `isCommandCandidate(text: string)`
-- L100 function `runnerOnPath(cache: Map<string, boolean>, runner: string)`
-- L110 function `checkAgentsRot(ctx: CheckContext)`
-- L177 function `checkModuleGlobRot(ctx: CheckContext)`
-- L195 const `rotCheck`
-
-## src/core/git.ts
-- L10 function `git(root: string, args: string[])`
-- L15 function `isRepo(root: string)`
-- L26 function `diffFiles(root: string, range: string)`
-- L39 function `logCommits(root: string, limit = 500)`
+- L67 function `extractBackticks(lines: string[])`
+- L77 function `isPathCandidate(text: string)`
+- L85 function `isGlob(text: string)`
+- L89 function `pathExists(root: string, allFiles: string[], candidate: string)`
+- L97 function `isCommandCandidate(text: string)`
+- L119 function `labelBefore(line: string, idx: number)`
+- L129 function `nonTerminatingReason(text: string, label: string, skipCommands: string[])`
+- L141 function `runnerOnPath(cache: Map<string, boolean>, runner: string)`
+- L151 function `checkAgentsRot(ctx: CheckContext)`
+- L264 function `checkModuleGlobRot(ctx: CheckContext)`
+- L284 const `rotCheck`
 
 ## src/core/version.ts
 - L4 function `VERSION`
 
-## test/gate.test.mjs
-- L17 function `makeRepo(files = {})`
-- L26 function `byName(results, name)`
-
 ## test/core.test.mjs
 - L20 function `makeRepo(files = {})`
+
+## test/gate.test.mjs
+- L22 function `makeRepo(files = {})`
+- L31 function `byName(results, name)`
 
 ## src/cli.ts
 - L38 function `rootDir()`
@@ -257,6 +288,11 @@ Files: 41 source files scanned. Ranked by cross-file references.
 ## test/diff.test.mjs
 - L12 function `git(cwd, args)`
 - L25 function `makeGitRepo(commits)`
+
+## test/cochange.test.mjs
+- L22 function `git(cwd, args)`
+- L35 function `makeGitRepo(count, commitFn)`
+- L58 function `entriesFor(config, files)`
 
 ## test/mcp.test.mjs
 - L21 function `send(method, params)`
