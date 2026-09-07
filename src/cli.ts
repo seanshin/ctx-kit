@@ -246,7 +246,9 @@ program
     models?: string; custom?: string; module?: string; out?: string; yes?: boolean;
   }) => {
     const config = loadConfig(rootDir());
-    const tasksPath = join(config.root, opts.tasks ?? DEFAULT_TASKS_RELATIVE);
+    // resolve, not join: an absolute --tasks path must be honored as given,
+    // and a relative one is relative to the target repository.
+    const tasksPath = resolve(config.root, opts.tasks ?? DEFAULT_TASKS_RELATIVE);
 
     if (opts.init) {
       if (existsSync(tasksPath)) {
@@ -267,7 +269,7 @@ program
 
     if (!existsSync(tasksPath)) {
       console.error(
-        `no task file at ${opts.tasks ?? DEFAULT_TASKS_RELATIVE} — run \`ctxkit eval --init\` first`,
+        `no task file at ${tasksPath} — run \`ctxkit eval --init\` first`,
       );
       process.exitCode = 1;
       return;
