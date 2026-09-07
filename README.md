@@ -590,6 +590,7 @@ GPL tools such as universal-ctags were excluded deliberately.
 
 ## Docs
 
+- [Changelog](CHANGELOG.md) — what shipped in each release
 - [Whitepaper](docs/WHITEPAPER.md) · [백서](docs/WHITEPAPER.ko.md) — design, algorithms, measurements
 - [Onboarding playbook](docs/onboarding.md) (KO) — 10-minute checklist
 - [**Plan v2.3**](docs/plan-v2.md) (KO) — task-shaped context, repository health, and a parallel-execution plan (seams, work streams, merge order)

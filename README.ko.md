@@ -561,6 +561,7 @@ tree-sitter+PageRank 접근에서 영감을 받은 독립 구현이다(Apache-2.
 
 ## 문서
 
+- [변경 이력](CHANGELOG.md) — 릴리스별 변경 사항
 - [백서](docs/WHITEPAPER.ko.md) · [Whitepaper](docs/WHITEPAPER.md) — 설계·알고리즘·측정
 - [온보딩 플레이북](docs/onboarding.md) — 10분 체크리스트
 - [**기획 v2.3**](docs/plan-v2.md) — 과제 형태의 컨텍스트와 저장소 건강, 그리고 병행 실행 계획(이음매·스트림·병합 순서)

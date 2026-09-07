@@ -1,4 +1,4 @@
-<!-- ctxkit:v1 repomap generated=2026-09-07T09:15:19.717Z budget=8000 -->
+<!-- ctxkit:v1 repomap generated=2026-09-07T23:35:43.609Z budget=8000 -->
 # Repository Map
 
 Files: 44 source files scanned. Ranked by cross-file references.
