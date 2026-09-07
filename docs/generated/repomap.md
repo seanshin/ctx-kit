@@ -1,4 +1,4 @@
-<!-- ctxkit:v1 repomap generated=2026-09-07T08:35:58.345Z budget=8000 -->
+<!-- ctxkit:v1 repomap generated=2026-09-07T08:50:22.532Z budget=8000 -->
 # Repository Map
 
 Files: 44 source files scanned. Ranked by cross-file references.
@@ -29,31 +29,31 @@ Files: 44 source files scanned. Ranked by cross-file references.
 - L33 function `startMcpServer(rootDir: string)`
 
 ## src/eval.ts
-- L23 interface `EvalTask`
-- L35 interface `ModelSpec`
-- L41 const `DEFAULT_PROFILES`
-- L42 const `DEFAULT_MODELS_SPEC`
-- L43 const `DEFAULT_TASKS_RELATIVE`
-- L44 const `DEFAULT_RESULTS_RELATIVE`
-- L52 const `TASKS_TEMPLATE`
-- L102 function `loadTasks(path: string)`
-- L121 function `parseModelsArg(models: string | undefined, custom: string | undefined)`
-- L122 function `list`
-- L153 function `extractSection(content: string, heading: string)`
-- L167 interface `DryRunCell`
-- L176 interface `DryRunProfileRate`
-- L185 interface `DryRunReport`
-- L197 function `dryRunEval(`
-- L242 function `pct(x: number)`
-- L246 function `formatDryRunReport(report: DryRunReport)`
-- L272 interface `ModelEvalResult`
-- L282 function `plannedCallCount(profiles: string[], models: ModelSpec[], tasks: EvalTask[])`
-- L291 function `defaultConfirm(message: string)`
-- L304 interface `RunEvalOptions`
-- L317 interface `RunEvalReport`
-- L322 function `formatResultsMarkdown(`
-- L350 function `runModelEval(`
-- L388 function `answer`
+- L24 interface `EvalTask`
+- L36 interface `ModelSpec`
+- L42 const `DEFAULT_PROFILES`
+- L43 const `DEFAULT_MODELS_SPEC`
+- L44 const `DEFAULT_TASKS_RELATIVE`
+- L45 const `DEFAULT_RESULTS_RELATIVE`
+- L53 const `TASKS_TEMPLATE`
+- L103 function `loadTasks(path: string)`
+- L122 function `parseModelsArg(models: string | undefined, custom: string | undefined)`
+- L123 function `list`
+- L154 function `extractSection(content: string, heading: string)`
+- L168 interface `DryRunCell`
+- L177 interface `DryRunProfileRate`
+- L186 interface `DryRunReport`
+- L198 function `dryRunEval(`
+- L251 function `pct(x: number)`
+- L255 function `formatDryRunReport(report: DryRunReport)`
+- L281 interface `ModelEvalResult`
+- L291 function `plannedCallCount(profiles: string[], models: ModelSpec[], tasks: EvalTask[])`
+- L300 function `defaultConfirm(message: string)`
+- L313 interface `RunEvalOptions`
+- L326 interface `RunEvalReport`
+- L331 function `formatResultsMarkdown(`
+- L359 function `runModelEval(`
+- L397 function `answer`
 
 ## src/core/repomap.ts
 - L16 interface `RepoMapOptions`
@@ -200,6 +200,9 @@ Files: 44 source files scanned. Ranked by cross-file references.
 - L25 function `scoreQuery(files: RankedFile[], config: CtxConfig, query: string)`
 - L66 function `makeQueryScorer(query: string)`
 
+## src/core/text.ts
+- L2 function `escapeRegExp(s: string)`
+
 ## src/core/get.ts
 - L16 interface `GetOptions`
 - L21 interface `Section`
@@ -213,9 +216,6 @@ Files: 44 source files scanned. Ranked by cross-file references.
 ## test/eval.test.mjs
 - L17 function `makeRepo(files = {})`
 - L33 function `writeTasks(root, yaml)`
-
-## src/core/text.ts
-- L2 function `escapeRegExp(s: string)`
 
 ## src/checks/health.ts
 - L26 function `isEntryPoint(rel: string)`

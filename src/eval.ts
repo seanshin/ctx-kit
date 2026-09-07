@@ -18,6 +18,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { parse } from "yaml";
 import { buildPack } from "./core/pack.js";
+import { escapeRegExp } from "./core/text.js";
 import type { CtxConfig } from "./core/config.js";
 
 export interface EvalTask {
@@ -216,7 +217,15 @@ export function dryRunEval(
         profile,
         task: task.id,
         expectFile: task.expect_file,
-        outlineHit: outlineSection.includes(task.expect_file),
+        // A real outline entry is a `## <path>` heading with the file's
+        // symbols under it. A bare mention is not: a module pack lists
+        // outside files as paths only, and models measurably could NOT say
+        // where a symbol lived from that (eval/findings.md, round 4 — 0/4).
+        // Substring matching would score those as hits and overstate what
+        // the profile can answer.
+        outlineHit: new RegExp(`^## ${escapeRegExp(task.expect_file)}\\s*$`, "m").test(
+          outlineSection,
+        ),
         contentHit: targetSection.includes(`### ${task.expect_file}`),
       });
     }
