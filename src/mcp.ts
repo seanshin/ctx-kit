@@ -17,6 +17,7 @@ import { readText, walkFiles } from "./core/fs.js";
 import { buildPack } from "./core/pack.js";
 import { buildRepoMap } from "./core/repomap.js";
 import { SOURCE_EXTENSIONS, extractSymbols } from "./adapters/symbols.js";
+import { installExactTokenizer } from "./adapters/tokenizer.js";
 
 function text(s: string): { content: Array<{ type: "text"; text: string }> } {
   return { content: [{ type: "text", text: s }] };
@@ -30,6 +31,7 @@ function sourceFiles(config: CtxConfig): string[] {
 }
 
 export async function startMcpServer(rootDir: string): Promise<void> {
+  await installExactTokenizer();
   const config = loadConfig(rootDir);
   const server = new McpServer({ name: "ctxkit", version: VERSION });
 

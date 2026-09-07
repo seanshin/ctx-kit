@@ -1,7 +1,7 @@
-<!-- ctxkit:v1 repomap generated=2026-09-07T08:06:13.948Z budget=8000 -->
+<!-- ctxkit:v1 repomap generated=2026-09-07T08:31:50.533Z budget=8000 -->
 # Repository Map
 
-Files: 39 source files scanned. Ranked by cross-file references.
+Files: 41 source files scanned. Ranked by cross-file references.
 
 ## src/core/config.ts
 - L5 const `CONFIG_FILE`
@@ -20,6 +20,11 @@ Files: 39 source files scanned. Ranked by cross-file references.
 - L93 const `BUILTIN_IGNORE_DIRS`
 - L109 function `findConfig(startDir: string)`
 - L120 function `loadConfig(rootDir: string)`
+
+## src/mcp.ts
+- L22 function `text(s: string)`
+- L27 function `sourceFiles(config: CtxConfig)`
+- L33 function `startMcpServer(rootDir: string)`
 
 ## src/eval.ts
 - L23 interface `EvalTask`
@@ -47,11 +52,6 @@ Files: 39 source files scanned. Ranked by cross-file references.
 - L322 function `formatResultsMarkdown(`
 - L350 function `runModelEval(`
 - L388 function `answer`
-
-## src/mcp.ts
-- L21 function `text(s: string)`
-- L26 function `sourceFiles(config: CtxConfig)`
-- L32 function `startMcpServer(rootDir: string)`
 
 ## src/checks/types.ts
 - L9 interface `CheckResult`
@@ -95,6 +95,12 @@ Files: 39 source files scanned. Ranked by cross-file references.
 - L251 function `explainPack(config: CtxConfig, opts: PackOptions)`
 - L263 function `shownRef`
 
+## src/core/tokens.ts
+- L34 function `isCJK(codePoint: number)`
+- L56 function `setTokenCounter(fn: (text: string)`
+- L60 function `approxTokens(text: string)`
+- L64 function `heuristicTokens(text: string)`
+
 ## src/core/select.ts
 - L17 interface `SelectOptions`
 - L26 interface `Selection`
@@ -123,8 +129,12 @@ Files: 39 source files scanned. Ranked by cross-file references.
 - L113 interface `SyncStatus`
 - L119 function `checkSync(config: CtxConfig)`
 
-## src/core/tokens.ts
-- L7 function `approxTokens(text: string)`
+## src/adapters/tokenizer.ts
+- L25 type `Encoder`
+- L30 function `loadEncoder()`
+- L50 function `exactTokenizerAvailable()`
+- L60 function `countTokens(text: string)`
+- L76 function `installExactTokenizer()`
 
 ## src/adapters/imports.ts
 - L17 interface `ImportRef`
@@ -217,10 +227,10 @@ Files: 39 source files scanned. Ranked by cross-file references.
 - L20 function `makeRepo(files = {})`
 
 ## src/cli.ts
-- L37 function `rootDir()`
-- L45 function `printExplain(rows: ExplainRow[])`
-- L46 function `col`
-- L61 function `writeOutput(root: string, relPath: string, content: string, stdout: boolean)`
+- L38 function `rootDir()`
+- L46 function `printExplain(rows: ExplainRow[])`
+- L47 function `col`
+- L62 function `writeOutput(root: string, relPath: string, content: string, stdout: boolean)`
 
 ## src/adapters/repomix.ts
 - L11 function `repomixAvailable()`
@@ -256,5 +266,8 @@ Files: 39 source files scanned. Ranked by cross-file references.
 - (no extractable symbols)
 
 ## src/adapters/serena.ts
+- (no extractable symbols)
+
+## test/tokens.test.mjs
 - (no extractable symbols)
 

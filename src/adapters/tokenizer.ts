@@ -11,13 +11,16 @@
  * here falls back to `approxTokens` and never throws when the package is
  * absent, so the fallback path is always safe to call.
  *
- * Not wired into pack.ts/repomap.ts/get.ts: those run approxTokens
- * synchronously in tight budget loops, and a dynamic import is inherently
- * async. This adapter is for callers that can afford to await an exact
- * count (e.g. a future `--exact-tokens` CLI/MCP flag, or offline
- * measurement) without forcing every hot-path caller to become async.
+ * Wiring: `installExactTokenizer()` is awaited once at startup and, if the
+ * package is present AND the user opted in, swaps the counter behind
+ * `approxTokens` so the hot budget loops stay synchronous.
+ *
+ * Opt-in is explicit (CTXKIT_EXACT_TOKENS=1), not "on when installed": the
+ * package is a devDependency here, so presence-based activation would make
+ * this repository count tokens differently from every user's install and
+ * silently invalidate the measurements in eval/findings.md.
  */
-import { approxTokens } from "../core/tokens.js";
+import { approxTokens, setTokenCounter } from "../core/tokens.js";
 
 type Encoder = (text: string) => ArrayLike<number>;
 
@@ -64,4 +67,22 @@ export async function countTokens(text: string): Promise<number> {
     }
   }
   return approxTokens(text);
+}
+
+/**
+ * Swap in exact counting when the user asked for it and the package is
+ * available. Returns what actually happened, so callers can say so.
+ */
+export async function installExactTokenizer(): Promise<"exact" | "heuristic" | "unavailable"> {
+  if (process.env.CTXKIT_EXACT_TOKENS !== "1") return "heuristic";
+  const encode = await loadEncoder();
+  if (!encode) return "unavailable";
+  setTokenCounter((text) => {
+    try {
+      return encode(text).length;
+    } catch {
+      return approxTokens(text);
+    }
+  });
+  return "exact";
 }

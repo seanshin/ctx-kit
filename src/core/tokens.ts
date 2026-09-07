@@ -46,7 +46,22 @@ function isCJK(codePoint: number): boolean {
  *  under BPE, and far closer to reality than chars/4's implicit 0.25. */
 const CJK_TOKENS_PER_CHAR = 0.95;
 
+/**
+ * Replaceable counter. The heuristic below is the default everywhere; an
+ * exact tokenizer can install itself once at startup (see
+ * adapters/tokenizer.ts) so the hot budget loops stay synchronous.
+ */
+let counter: (text: string) => number = heuristicTokens;
+
+export function setTokenCounter(fn: (text: string) => number): void {
+  counter = fn;
+}
+
 export function approxTokens(text: string): number {
+  return counter(text);
+}
+
+function heuristicTokens(text: string): number {
   let cjkChars = 0;
   let otherUnits = 0;
   for (const ch of text) {

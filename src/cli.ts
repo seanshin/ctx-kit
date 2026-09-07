@@ -13,6 +13,7 @@ import { buildPack, explainPack, type ExplainRow } from "./core/pack.js";
 import { buildRepoMap } from "./core/repomap.js";
 import { syncRules } from "./core/sync.js";
 import { repomixAvailable, runRepomix } from "./adapters/repomix.js";
+import { installExactTokenizer } from "./adapters/tokenizer.js";
 import {
   DEFAULT_PROFILES as EVAL_DEFAULT_PROFILES,
   DEFAULT_RESULTS_RELATIVE,
@@ -342,6 +343,8 @@ program
     const { startMcpServer } = await import("./mcp.js");
     await startMcpServer(rootDir());
   });
+
+await installExactTokenizer();
 
 program.parseAsync().catch((err: unknown) => {
   console.error(err instanceof Error ? err.message : String(err));

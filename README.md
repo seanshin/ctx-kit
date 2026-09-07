@@ -377,11 +377,23 @@ the start and end of a long prompt far better than the middle.
 **Languages recognized for symbol extraction**: TypeScript/TSX, JavaScript/JSX,
 Python, Go, Rust, Java, Kotlin, C#, Ruby, PHP, Swift, C/C++.
 
-Token counts are a `chars/4` approximation — accurate enough for budgeting,
-and replaceable by a real tokenizer behind the same interface. Note that it
-**underestimates CJK text** (Korean, Japanese, Chinese comments cost closer to
-one token per character), so leave headroom or lower the budget for codebases
-with substantial CJK content.
+Token counts are a heuristic: `chars/4` for ASCII, and CJK codepoints at a
+measured 0.95 tokens/character, because Korean, Japanese and Chinese cost
+close to one token each. Plain `chars/4` underestimated a Korean-commented
+file by 28%; this cuts the error to about 9%, and ASCII counts are unchanged.
+
+For exact counts, install the optional tokenizer and opt in:
+
+```sh
+npm i -D gpt-tokenizer        # MIT; not pulled in by default (~29 MB of BPE tables)
+CTXKIT_EXACT_TOKENS=1 ctxkit pack --profile light --module risk
+```
+
+Opt-in is explicit rather than "on when installed" so that everyone's counts
+match by default and published measurements stay reproducible. The difference
+is real: on one Korean-commented module a `light` pack holds 11 files by the
+heuristic and 9 by exact counting — the extra two would have overflowed the
+model's actual limit.
 
 ## MCP tool reference
 
