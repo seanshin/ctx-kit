@@ -494,7 +494,8 @@ tree-sitter+PageRank 접근에서 영감을 받은 독립 구현이다(Apache-2.
 
 - [백서](docs/WHITEPAPER.ko.md) · [Whitepaper](docs/WHITEPAPER.md) — 설계·알고리즘·측정
 - [온보딩 플레이북](docs/onboarding.md) — 10분 체크리스트
-- [컨텍스트 체계 기획](docs/ai-context-plan.md) · [패키지 아키텍처](docs/package-architecture.md)
+- [**기획 v2**](docs/plan-v2.md) — 과제 형태의 컨텍스트: `--about`, `--diff`, 규칙 부패 탐지, 공변경 랭킹, `ctxkit eval`
+- [컨텍스트 체계 기획](docs/ai-context-plan.md) · [패키지 아키텍처](docs/package-architecture.md) — v1, 실행 결과 기록 포함
 - [측정 결론](eval/findings.md)
 
 MIT © 2026 Hyounmouk Shin

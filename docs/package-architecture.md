@@ -39,21 +39,29 @@
 
 ## 3. CLI 명령 설계
 
+**구현 상태: v0.2.1 기준 아래 7종 전부 구현 완료.** 괄호 안은 계획과 달라진 점.
+
 ```
-npx ctxkit init                  # 대상 저장소 스캐폴딩: context.config.yaml + AGENTS.md 템플릿 생성
-npx ctxkit sync                  # AGENTS.md → CLAUDE.md/.cursorrules/... 배포 (Ruler 래핑)
-npx ctxkit map                   # Tier 1 리포맵 생성 → docs/generated/repomap.md
-npx ctxkit pack [--profile p] [--module m]
-                                 # 프로파일별 컨텍스트 팩 생성 (Repomix 래핑)
-                                 # → docs/generated/packs/<module>-<profile>.md
-npx ctxkit get <질의>            # 팩/맵에서 관련 부분만 stdout 출력 (파이프 연결용)
-npx ctxkit serve                 # MCP 서버 기동 (stdio) — 아래 4절
-npx ctxkit check                 # AGENTS.md 줄 수 초과·시크릿 포함·산출물 스테일 여부 검사 (CI 게이트)
+ctxkit init [--auto] [--hooks] [--ci]   # 스캐폴딩 (+manifest에서 명령·모듈 자동 감지,
+                                        #  pre-commit 훅, CI 워크플로)
+ctxkit sync [--link] [--force]          # AGENTS.md → CLAUDE.md/.cursorrules/... 배포
+                                        #  (Ruler 래핑이 아니라 무의존 내부 구현)
+ctxkit map [-b <tokens>]                # Tier 1 리포맵 → docs/generated/repomap.md
+ctxkit pack [-p <profile>] [-m <module>] [--repomix]
+                                        # 프로파일별 팩 (내부 패커 기본, Repomix는 선택)
+                                        # → docs/generated/packs/<module>-<profile>.md
+ctxkit get <질의> [-b] [-k]             # 규칙·모듈 문서·맵에서 관련 섹션만 stdout
+ctxkit check [--max-rule-lines]         # 게이트: 규칙 길이·sync 신선도·맵 스테일·시크릿
+ctxkit serve                            # MCP 서버 기동 (stdio) — 아래 4절
 ```
 
 - 모든 명령은 대상 저장소 루트의 `context.config.yaml`을 읽는다. 없으면 `init` 안내.
-- `--repo <path|git-url>` 옵션으로 **다른 저장소를 원격 대상**으로 실행 가능(중앙에서 여러 repo의 팩 일괄 생성).
-- 출력은 기본 파일, `--stdout` 시 표준출력 — 셸 파이프로 어떤 도구에든 연결된다.
+- 다른 저장소 대상 실행은 계획의 `--repo` 대신 **전역 `-C, --dir <path>`** 로 구현했다
+  (모든 명령에 일관 적용). 원격 git URL 대상 실행은 미구현 — 필요하면 클론 후 `-C`.
+- 문서를 출력하는 명령은 `--stdout`을 받는다 — 셸 파이프로 어떤 도구에든 연결된다.
+
+**v2 계획**: `pack --about <질의>` / `pack --diff <범위>`, `check`의 규칙 부패 탐지,
+`ctxkit eval` — 상세는 [plan-v2.md](plan-v2.md).
 
 ### context.config.yaml (대상 저장소에 남는 유일한 설정)
 
@@ -83,15 +91,19 @@ sync:
 | `get_rules` | AGENTS.md(+하위 디렉토리 규칙) 반환 | Tier 0 |
 | `get_repomap` | 리포맵 반환, `budget` 토큰 예산 파라미터 | Tier 1 |
 | `get_module_context` | 모듈 문서 + 해당 모듈 팩 반환 | Tier 2 |
-| `search_symbol` | 심볼 검색/참조 추적 — Serena 위임, 미설치 시 tree-sitter 폴백(정의 위치만) | Tier 3 |
+| `search_symbol` | 심볼 검색/참조 추적 — **자체 아웃라인 구현**(정의+참조 30건). Serena는 위임 대상이 아니라 나란히 등록하는 별도 서버로 확정 | Tier 3 |
 | `make_pack` | 지정 범위·프로파일로 팩 생성 후 경로 반환 | 팩 |
 
 등록 예 (모든 MCP 클라이언트 공통 패턴):
 
 ```jsonc
 // .mcp.json / mcp_servers 설정
-{ "ctxkit": { "command": "npx", "args": ["-y", "ctxkit", "serve"] } }
+{ "ctxkit": { "command": "npx", "args": ["-y", "@seanshin/ctx-kit", "serve"] } }
 ```
+
+도구 5종은 **v2에서도 개수를 늘리지 않고 파라미터만 넓힌다**(`make_pack`·
+`get_module_context`에 `about`/`diff` 추가). 에이전트에게 선택지를 늘리는 것 자체가
+비용이기 때문이다.
 
 ---
 
@@ -132,9 +144,15 @@ ctxkit/
 
 ---
 
-## 7. 로드맵 반영 (ai-context-plan.md P1~P3 구체화)
+## 7. 로드맵 (ai-context-plan.md P1~P3 구체화) — 결과
 
-1. **P1a**: `init`/`map`/`pack` + 코어/어댑터 골격. 파일 인터페이스(C) 완성이 최우선.
-2. **P1b**: `sync`/`check` + CI 템플릿.
-3. **P2**: `serve` MCP 서버 + Claude Code/Codex/로컬 에이전트 3개 환경에서 호출 검증.
-4. **P3**: npm 배포 + 실제 개발 중인 타 저장소 2곳에 `init` 온보딩, 피드백으로 config 스키마 고정(v1).
+1. **P1a** ✅ `init`/`map`/`pack` + 코어/어댑터 골격. 파일 인터페이스(C) 우선 완성.
+2. **P1b** ✅ `sync`/`check`/`get` + CI 템플릿 + pre-commit 훅(무료 게이트).
+3. **P2** ✅ `serve` MCP 서버 5종 도구. 실사용 에이전트 세션에서 3/3 정답(4턴 9.3초).
+4. **P3** ✅ npm 공개 배포(`@seanshin/ctx-kit`) + 실전 저장소 1곳 온보딩 + 자체 적용.
+   config 스키마 v1 고정. 2호 온보딩(대형 수작업 규칙 파일 이관)은 대상 저장소 대기.
+
+품질 보강(0.2.x): 테스트 19건(코어 12 + MCP 통합 7), 버전 단일 출처화,
+`init --auto` 자동 감지, 온보딩 플레이북, 백서 EN/KO, GitHub 공개 + CI(Node 20/22).
+
+**다음 버전 설계는 [plan-v2.md](plan-v2.md)** — 과제 형태의 컨텍스트로 확장한다.

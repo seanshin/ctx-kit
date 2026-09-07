@@ -361,9 +361,17 @@ profile choice an empirical question rather than a matter of taste.
   second onboarding — migrating a large hand-written rule file into the
   AGENTS.md flow — is planned.
 
-Roadmap: tokenizer-accurate budgets, a true local-LLM measurement round, a
-tree-sitter symbol adapter, and per-repo task suites contributed alongside
-onboardings.
+- **Selection is task-agnostic.** The ranking answers "what matters in this
+  repository", not "what matters for the job at hand" — the measurements
+  passed or failed on whether the needed file happened to rank high enough.
+  This is the limitation v2 addresses.
+
+Roadmap — the next version makes context *task-shaped*: query-directed packs
+(`--about`), change-centered packs (`--diff`), rule-rot detection, git
+co-change ranking, and shipping the measurement harness as a first-class
+command. The full design, with success criteria per item, is
+[plan-v2.md](plan-v2.md) (Korean). Beyond that: tokenizer-accurate budgets, a
+true local-LLM measurement round, and a tree-sitter symbol adapter.
 
 ---
 

@@ -519,7 +519,8 @@ GPL tools such as universal-ctags were excluded deliberately.
 
 - [Whitepaper](docs/WHITEPAPER.md) · [백서](docs/WHITEPAPER.ko.md) — design, algorithms, measurements
 - [Onboarding playbook](docs/onboarding.md) (KO) — 10-minute checklist
-- [Context architecture plan](docs/ai-context-plan.md) (KO) · [Package architecture](docs/package-architecture.md) (KO)
+- [**Plan v2**](docs/plan-v2.md) (KO) — task-shaped context: `--about`, `--diff`, rule-rot detection, co-change ranking, `ctxkit eval`
+- [Context architecture plan](docs/ai-context-plan.md) (KO) · [Package architecture](docs/package-architecture.md) (KO) — v1, with outcomes recorded
 - [Measurements](eval/findings.md) (KO)
 
 MIT © 2026 Hyounmouk Shin
