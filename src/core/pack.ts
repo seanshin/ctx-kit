@@ -13,6 +13,7 @@ import { buildRepoMap, rankFiles } from "./repomap.js";
 import { moduleFiles, select } from "./select.js";
 import { approxTokens } from "./tokens.js";
 import { makeQueryScorer } from "../scorers/query.js";
+import { coChangeSeeds, makeCoChangeScorer } from "../scorers/cochange.js";
 
 export interface PackOptions {
   profile: string;
@@ -68,6 +69,15 @@ function targetFiles(config: CtxConfig, opts: PackOptions): { files: string[]; s
   // §8-B.2 seam). With no query this array is empty and `rankFiles` takes
   // exactly the path it always did — no regression.
   const scorers = opts.about ? [makeQueryScorer(opts.about)] : [];
+  // Co-change (plan §4.7, stream E) only ever applies relative to a seed
+  // set — a module's files, a --diff seed list, or a query's top hits — and
+  // only when config.ranking.cochange is on. With neither, coChangeSeeds
+  // returns [] and this is a no-op, so the unscoped map (buildRepoMap, which
+  // never reaches here) is untouched, and existing behavior is unchanged.
+  if (config.ranking.cochange) {
+    const seeds = coChangeSeeds(config, opts, selection);
+    if (seeds.length > 0) scorers.push(makeCoChangeScorer(seeds));
+  }
   // Budget cuts drop the tail, so order by importance, not alphabet.
   const ranked = rankFiles(config, { files: selection.files, scorers }).map((e) => e.rel);
   // Seeds must survive the budget, so they lead.

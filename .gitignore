@@ -8,3 +8,6 @@ eval/results-twin.md
 
 # agent worktrees (local only)
 .claude/worktrees/
+
+# co-change scan cache (plan §4.7/§6-B) — keyed by HEAD, regenerated per run
+docs/generated/cochange-cache.json
