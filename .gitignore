@@ -5,3 +5,6 @@ dist/
 # private-repo eval artifacts (kept local only)
 eval/twin-tasks.yaml
 eval/results-twin.md
+
+# agent worktrees (local only)
+.claude/worktrees/
