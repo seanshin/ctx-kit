@@ -52,6 +52,20 @@ export interface RankingConfig {
   query_weight: number;
 }
 
+/** Knobs for `check`'s rule/config rot detection (docs/plan-v2.md §4.3). */
+export interface RotConfig {
+  /**
+   * Documented commands never executed by `--run-commands`, in addition to
+   * the built-in watch/serve/dev/start heuristic (src/checks/rot.ts). Match
+   * is a case-insensitive substring against either the command text or its
+   * documented label (e.g. "Watch: `npm run dev`" has label "Watch"). Use
+   * this to skip a non-terminating command the heuristic misses, or to force
+   * a command matched by the heuristic to still be reported as skipped under
+   * an explicit reason rather than the inferred one.
+   */
+  skip_commands: string[];
+}
+
 export interface CtxConfig {
   version: number;
   /** Absolute path of the target repository root. */
@@ -66,6 +80,7 @@ export interface CtxConfig {
   constraints: Constraint[];
   health: HealthConfig;
   ranking: RankingConfig;
+  rot: RotConfig;
 }
 
 export const DEFAULT_HEALTH: HealthConfig = {
@@ -79,6 +94,10 @@ export const DEFAULT_RANKING: RankingConfig = {
   cochange: false,
   commits: 500,
   query_weight: 2,
+};
+
+export const DEFAULT_ROT: RotConfig = {
+  skip_commands: [],
 };
 
 /** Known violations recorded so only *new* ones fail (plan-v2 §4.2). */
@@ -139,5 +158,6 @@ export function loadConfig(rootDir: string): CtxConfig {
     constraints: raw.constraints ?? [],
     health: { ...DEFAULT_HEALTH, ...(raw.health ?? {}) },
     ranking: { ...DEFAULT_RANKING, ...(raw.ranking ?? {}) },
+    rot: { ...DEFAULT_ROT, ...(raw.rot ?? {}) },
   };
 }
