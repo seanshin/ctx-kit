@@ -14,7 +14,7 @@
 
 - **Three interfaces over one core.** `src/cli.ts` (CLI), `src/mcp.ts` (MCP
   server) and the generated files under `docs/generated/` are three views of
-  the same `src/core/` logic. A feature belongs in `core/`; the interfaces
+  the same `src/core/` logic. A feature belongs in `src/core/`; the interfaces
   only translate arguments and format output.
 - **Files are the floor.** Every feature must be able to leave a plain-file
   artifact, because the weakest consumer (a person pasting into a chat
@@ -29,11 +29,11 @@
 ## Constraints
 
 - **MIT only.** Never copy code from Apache-2.0 or GPL projects, including
-  aider (Apache-2.0) whose repo-map *algorithm* inspired `core/repomap.ts`.
-  Integrate external tools by spawning their CLI, as `adapters/repomix.ts`
+  aider (Apache-2.0) whose repo-map *algorithm* inspired `src/core/repomap.ts`.
+  Integrate external tools by spawning their CLI, as `src/adapters/repomix.ts`
   does.
 - **The version lives in `package.json` alone.** Read it through
-  `core/version.ts`; never hardcode a version string in `cli.ts`, `mcp.ts`
+  `src/core/version.ts`; never hardcode a version string in `src/cli.ts`, `src/mcp.ts`
   or anywhere else.
 - **`docs/generated/` is derived.** Regenerate with `ctxkit map`; never
   hand-edit. The same applies to `CLAUDE.md`, which comes from this file.
@@ -43,7 +43,7 @@
 - **Publishing requires 2FA**, so `npm publish` cannot run unattended; ask
   the maintainer to run it. `prepublishOnly` runs the full test suite.
 - **Changing pack or ranking behavior invalidates the measurements.** If you
-  touch `core/pack.ts` or `core/repomap.ts`, re-run `node eval/run.mjs` and
+  touch `src/core/pack.ts` or `src/core/repomap.ts`, re-run `node eval/run.mjs` and
   update `eval/findings.md` rather than leaving stale numbers in the docs.
 
 ## Domain glossary
@@ -53,6 +53,6 @@
 | Tier 0–3 | Rules (`AGENTS.md`) / repo map / module packs / live symbol search |
 | profile | Named injection recipe per model capability (`frontier`, `mid`, `light`) |
 | pack | Assembled context document for one profile, within a token budget |
-| map | `repomap.md`: files ranked by cross-file references, with symbol outlines |
+| map | `docs/generated/repomap.md`: files ranked by cross-file references, with symbol outlines |
 | foreign file | A per-tool rule file ctx-kit did not generate — `sync` refuses to overwrite it |
 | gate | `ctxkit check`: rule length, sync freshness, map staleness, secrets |

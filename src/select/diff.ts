@@ -18,15 +18,13 @@ import { readText } from "../core/fs.js";
 import { rankFiles } from "../core/repomap.js";
 import { allSourceFiles, type Selection } from "../core/select.js";
 import { extractSymbols, SOURCE_EXTENSIONS } from "../adapters/symbols.js";
+import { escapeRegExp } from "../core/text.js";
 
 /** Reviewer context, not a full call graph — keeps the pack bounded. */
 const MAX_EXPANSION = 10;
 /** Symbols shorter than this (`x`, `run`, `id`, …) are too generic to signal a real reference. */
 const MIN_SYMBOL_LEN = 4;
 
-function escapeRegExp(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
 
 /**
  * `select()`'s `diff` branch. Degradation per §6-C: not a git repository or

@@ -1,7 +1,7 @@
-<!-- ctxkit:v1 repomap generated=2026-09-07T07:56:57.670Z budget=8000 -->
+<!-- ctxkit:v1 repomap generated=2026-09-07T08:04:35.996Z budget=8000 -->
 # Repository Map
 
-Files: 31 source files scanned. Ranked by cross-file references.
+Files: 36 source files scanned. Ranked by cross-file references.
 
 ## src/core/config.ts
 - L5 const `CONFIG_FILE`
@@ -48,9 +48,10 @@ Files: 31 source files scanned. Ranked by cross-file references.
 - L350 function `runModelEval(`
 - L388 function `answer`
 
-## eval/run.mjs
-- L40 function `argVal`
-- L57 function `profiles`
+## src/mcp.ts
+- L21 function `text(s: string)`
+- L26 function `sourceFiles(config: CtxConfig)`
+- L32 function `startMcpServer(rootDir: string)`
 
 ## src/checks/types.ts
 - L9 interface `CheckResult`
@@ -58,26 +59,9 @@ Files: 31 source files scanned. Ranked by cross-file references.
 - L23 interface `CheckContext`
 - L34 interface `Check`
 
-## src/core/repomap.ts
-- L15 interface `RepoMapOptions`
-- L23 interface `RankedFile`
-- L34 function `escapeRegExp(s: string)`
-- L52 type `Scorer`
-- L54 interface `RankOptions`
-- L65 function `rankFiles(config: CtxConfig, opts: RankOptions = {})`
-- L105 function `buildRepoMap(config: CtxConfig, opts: RepoMapOptions = {})`
-
-## src/mcp.ts
-- L20 function `text(s: string)`
-- L24 function `escapeRegExp(s: string)`
-- L28 function `sourceFiles(config: CtxConfig)`
-- L34 function `startMcpServer(rootDir: string)`
-
-## src/adapters/symbols.ts
-- L10 interface `CodeSymbol`
-- L24 const `SOURCE_EXTENSIONS`
-- L30 interface `Rule`
-- L91 function `extractSymbols(relPath: string, content: string)`
+## eval/run.mjs
+- L40 function `argVal`
+- L57 function `profiles`
 
 ## src/core/fs.ts
 - L6 interface `WalkOptions`
@@ -85,12 +69,29 @@ Files: 31 source files scanned. Ranked by cross-file references.
 - L25 function `visit`
 - L57 function `readText(root: string, rel: string)`
 
+## src/adapters/symbols.ts
+- L10 interface `CodeSymbol`
+- L24 const `SOURCE_EXTENSIONS`
+- L30 interface `Rule`
+- L91 function `extractSymbols(relPath: string, content: string)`
+
+## src/core/repomap.ts
+- L16 interface `RepoMapOptions`
+- L24 interface `RankedFile`
+- L50 type `Scorer`
+- L52 interface `RankOptions`
+- L63 function `rankFiles(config: CtxConfig, opts: RankOptions = {})`
+- L116 function `buildRepoMap(config: CtxConfig, opts: RepoMapOptions = {})`
+
 ## src/core/select.ts
 - L17 interface `SelectOptions`
 - L26 interface `Selection`
 - L38 function `moduleFiles(config: CtxConfig, moduleName: string)`
 - L47 function `allSourceFiles(config: CtxConfig)`
 - L53 function `select(config: CtxConfig, opts: SelectOptions = {})`
+
+## src/core/check.ts
+- L14 function `runChecks(config: CtxConfig, opts: CheckOptions = {})`
 
 ## src/core/pack.ts
 - L16 interface `PackOptions`
@@ -115,6 +116,21 @@ Files: 31 source files scanned. Ranked by cross-file references.
 ## src/core/tokens.ts
 - L7 function `approxTokens(text: string)`
 
+## src/adapters/imports.ts
+- L17 interface `ImportRef`
+- L30 function `toPosix(p: string)`
+- L34 function `existingFile(root: string, rel: string)`
+- L48 function `resolveRelative(root: string, fromFile: string, specifier: string)`
+- L64 function `resolvePythonRelative(root: string, fromFile: string, specifier: string)`
+- L81 function `lineOffsets(content: string)`
+- L87 function `lineAt(offsets: number[], index: number)`
+- L91 function `mid`
+- L107 function `extractJs(root: string, relPath: string, content: string)`
+- L125 function `extractPy(root: string, relPath: string, content: string)`
+- L148 function `extractGo(relPath: string, content: string)`
+- L173 function `extractRs(relPath: string, content: string)`
+- L190 function `extractImports(root: string, relPath: string, content: string)`
+
 ## src/core/detect.ts
 - L13 interface `Detected`
 - L22 function `detectCommandsIn(root: string, dir: string)`
@@ -131,36 +147,68 @@ Files: 31 source files scanned. Ranked by cross-file references.
 - L40 function `countMatches(haystack: string, needle: string)`
 - L52 function `getContext(config: CtxConfig, query: string, opts: GetOptions = {})`
 
+## src/core/text.ts
+- L2 function `escapeRegExp(s: string)`
+
+## src/checks/health.ts
+- L22 function `resultLevel(configured: Level)`
+- L36 function `isEntryPoint(rel: string)`
+- L42 function `isDunder(name: string)`
+- L46 function `normalizeSignature(sig: string)`
+- L53 function `reEscape(s: string)`
+- L61 function `checkConstraints(config: CtxConfig, entries: RankedFile[])`
+- L146 interface `SymOcc`
+- L158 function `findDuplicates(entries: RankedFile[])`
+- L210 function `findReferencedFiles(entries: RankedFile[], contents: Map<string, string>)`
+- L231 interface `OrphanResult`
+- L236 function `findOrphans(config: CtxConfig, entries: RankedFile[], referenced: Set<string>)`
+- L262 function `findUncovered(config: CtxConfig, entries: RankedFile[])`
+- L271 const `healthCheck`
+
+## src/checks/rot.ts
+- L30 function `stripFences(content: string)`
+- L46 function `commandSectionLines(lines: string[])`
+- L60 interface `Backtick`
+- L65 function `extractBackticks(lines: string[])`
+- L75 function `isPathCandidate(text: string)`
+- L83 function `isGlob(text: string)`
+- L87 function `pathExists(root: string, allFiles: string[], candidate: string)`
+- L95 function `isCommandCandidate(text: string)`
+- L100 function `runnerOnPath(cache: Map<string, boolean>, runner: string)`
+- L110 function `checkAgentsRot(ctx: CheckContext)`
+- L177 function `checkModuleGlobRot(ctx: CheckContext)`
+- L195 const `rotCheck`
+
 ## src/core/git.ts
 - L10 function `git(root: string, args: string[])`
 - L15 function `isRepo(root: string)`
 - L26 function `diffFiles(root: string, range: string)`
 - L39 function `logCommits(root: string, limit = 500)`
 
-## src/select/diff.ts
-- L27 function `escapeRegExp(s: string)`
-- L36 function `diffSelection(config: CtxConfig, range: string)`
+## test/eval.test.mjs
+- L17 function `makeRepo(files = {})`
+- L33 function `writeTasks(root, yaml)`
 
 ## src/core/version.ts
 - L4 function `VERSION`
 
-## src/core/check.ts
-- L14 function `runChecks(config: CtxConfig, opts: CheckOptions = {})`
+## test/gate.test.mjs
+- L17 function `makeRepo(files = {})`
+- L26 function `byName(results, name)`
+
+## test/core.test.mjs
+- L20 function `makeRepo(files = {})`
 
 ## src/adapters/repomix.ts
 - L11 function `repomixAvailable()`
 - L16 function `runRepomix(root: string, args: string[])`
 
 ## src/cli.ts
-- L36 function `rootDir()`
-- L40 function `writeOutput(root: string, relPath: string, content: string, stdout: boolean)`
+- L37 function `rootDir()`
+- L41 function `writeOutput(root: string, relPath: string, content: string, stdout: boolean)`
 
 ## src/checks/index.ts
-- L13 const `CHECKS`
-
-## test/eval.test.mjs
-- L17 function `makeRepo(files = {})`
-- L33 function `writeTasks(root, yaml)`
+- L15 const `CHECKS`
 
 ## src/checks/repomap.ts
 - L12 const `repomapCheck`
@@ -174,8 +222,8 @@ Files: 31 source files scanned. Ranked by cross-file references.
 ## src/checks/sync.ts
 - L5 const `syncCheck`
 
-## test/core.test.mjs
-- L20 function `makeRepo(files = {})`
+## src/select/diff.ts
+- L34 function `diffSelection(config: CtxConfig, range: string)`
 
 ## test/diff.test.mjs
 - L12 function `git(cwd, args)`

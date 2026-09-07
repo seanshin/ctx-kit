@@ -173,7 +173,14 @@ function findDuplicates(entries: RankedFile[]): Map<string, SymOcc[]> {
     if (new Set(occs.map((o) => o.rel)).size < 2) continue;
     const bySig = new Map<string, SymOcc[]>();
     for (const o of occs) {
+      // A constant carries no signature, so "identical signature" is
+      // vacuously true for any two same-named consts and the filter
+      // degenerates — measured on this repo, `DEFAULT_PROFILES` in
+      // config.ts (a profile record) matched the unrelated one in eval.ts
+      // (a name list). Duplicate *implementation* is a claim about
+      // callable code, so require a real parameter list.
       const sigKey = normalizeSignature(o.symbol.signature);
+      if (sigKey === "") continue;
       const l = bySig.get(sigKey) ?? [];
       l.push(o);
       bySig.set(sigKey, l);

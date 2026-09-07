@@ -5,7 +5,8 @@ modules:
   core:       ["src/core/**"]        # tool-neutral logic: config, rank, pack, sync, check
   checks:     ["src/checks/**"]      # gate items: rules, sync, repomap, secrets, health, rot
   adapters:   ["src/adapters/**"]    # symbol extraction + external-tool wrappers
-  interfaces: ["src/cli.ts", "src/mcp.ts"]
+  interfaces: ["src/cli.ts", "src/mcp.ts", "src/eval.ts"]
+  select:     ["src/select/**"]
   eval:       ["eval/**"]            # measurement harness, fixture, findings
   test:       ["test/**"]
 

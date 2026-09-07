@@ -10,6 +10,7 @@ import { extname } from "node:path";
 import type { CtxConfig } from "./config.js";
 import { readText, walkFiles } from "./fs.js";
 import { approxTokens } from "./tokens.js";
+import { escapeRegExp } from "./text.js";
 import { SOURCE_EXTENSIONS, extractSymbols, type CodeSymbol } from "../adapters/symbols.js";
 
 export interface RepoMapOptions {
@@ -31,9 +32,6 @@ const COMMON_NAMES = new Set([
   "get", "set", "run", "new", "update", "create", "delete", "read", "write",
 ]);
 
-function escapeRegExp(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
 
 /**
  * Test files score artificially high (conftest fixtures are referenced by

@@ -12,6 +12,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import { loadConfig, type CtxConfig } from "./core/config.js";
 import { VERSION } from "./core/version.js";
+import { escapeRegExp } from "./core/text.js";
 import { readText, walkFiles } from "./core/fs.js";
 import { buildPack } from "./core/pack.js";
 import { buildRepoMap } from "./core/repomap.js";
@@ -21,9 +22,6 @@ function text(s: string): { content: Array<{ type: "text"; text: string }> } {
   return { content: [{ type: "text", text: s }] };
 }
 
-function escapeRegExp(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
 
 function sourceFiles(config: CtxConfig): string[] {
   return walkFiles(config.root, { exclude: config.exclude }).filter((f) =>
