@@ -98,10 +98,11 @@ ollama run qwen3:14b "$(cat /tmp/ctx.md)
 |---|---|---|
 | `ctxkit init [--auto] [--hooks] [--ci]` | 저장소 스캐폴딩 | `AGENTS.md`, `context.config.yaml`, 디렉토리, 훅 |
 | `ctxkit map [-b <토큰>]` | 교차 참조로 파일 랭킹, 심볼 아웃라인 | `docs/generated/repomap.md` |
-| `ctxkit pack [-p <프로파일>] [-m <모듈>]` | 토큰 예산 내로 컨텍스트 팩 조립 | `docs/generated/packs/…md` |
+| `ctxkit pack [-p <프로파일>] [-m <모듈>] [-a <질의>] [-d <범위>]` | 토큰 예산 내로 팩 조립, 과제·변경에 맞춰 선별 | `docs/generated/packs/…md` |
 | `ctxkit sync [--link] [--force]` | 단일 원본에서 규칙 배포 | `CLAUDE.md`, `.cursorrules`, … |
-| `ctxkit check [--max-rule-lines <n>]` | 게이트: 규칙 길이·sync·신선도·시크릿 | exit 0/1 |
+| `ctxkit check [--run-commands] [--update-baseline]` | 게이트: 규칙·sync·신선도·시크릿 **+ 저장소 건강** | exit 0/1 |
 | `ctxkit get <질의>` | 해당 컨텍스트 섹션 출력 | stdout |
+| `ctxkit eval [--dry-run]` | 과제 파일로 프로파일 측정; `--dry-run`은 무료 | 결과 표 |
 | `ctxkit serve` | MCP 서버 실행(stdio) | 도구 5종 |
 
 문서를 출력하는 명령은 모두 `--stdout`을 받고, 어느 명령이든 `-C <경로>`로 다른
@@ -115,7 +116,9 @@ ollama run qwen3:14b "$(cat /tmp/ctx.md)
 | 코드가 바뀌었을 때 | `ctxkit map` (맵이 오래되면 훅/CI가 경고한다) |
 | 규칙이 바뀌었을 때 | `AGENTS.md`를 고치고 `ctxkit sync` — `CLAUDE.md`를 직접 고치지 말 것 |
 | 커밋 전 | 할 일 없음: pre-commit 훅이 `ctxkit check`를 돌린다 |
-| 약한 모델에게 작업을 넘길 때 | `ctxkit pack --profile light --module <이름>` |
+| 약한 모델에게 작업을 넘길 때 | `ctxkit pack --profile light --about "<하려는 일>"` |
+| 변경을 리뷰할 때 | `ctxkit pack --diff --staged` |
+| 프로파일을 근거로 고를 때 | `ctxkit eval --dry-run` (모델 호출 없음, 무료) |
 | 다른 저장소 온보딩 | `ctxkit -C /path/to/repo init --auto --hooks` |
 
 10분 온보딩 체크리스트: [docs/onboarding.md](docs/onboarding.md).
@@ -223,6 +226,41 @@ MCP도 CLI도 없는 환경(챗창에 붙여넣는 사람 포함)까지 항상 �
 설치돼 있으면 외부 [Repomix](https://github.com/yamadashy/repomix) CLI에
 위임하고, 실패 시 내부 패커로 폴백한다.
 
+**팩 선별 바꾸기.** 두 플래그는 "몇 개가 들어가나"가 아니라 "어떤 파일이
+뽑히나"를 바꾼다:
+
+```sh
+ctxkit pack --about "gold 등급 할인 반올림"   # 과제 관련도로 랭킹 (BM25)
+ctxkit pack --diff --staged                    # 리뷰 대상 변경 중심
+ctxkit pack --about "…" --explain              # 각 파일이 왜 그 순위인지
+```
+
+`--about`은 경로(가중 3)·심볼명(2)·본문(1) 세 필드에 BM25를 매겨 참조 랭킹에
+더한다. CJK는 문자 바이그램으로 색인하므로 한국어 질의가 조사 변화를 견딘다
+(할인율을 → 할인율도 매칭). 다만 **영어 어간 처리는 없어서** "secret"이 식별자
+`secrets`와 매칭되지 않는다 — 코드에 실제로 나타나는 단어를 쓸 것.
+
+`--diff`는 git 범위나 `--staged`를 받는다. 변경 파일은 **시드**라서 예산 때문에
+빠지지 않으며, 시드만으로 예산을 넘기면 시드 경로 목록 + 최상위 시드 원문으로
+열화한다.
+
+### `ctxkit eval [--init] [--dry-run] [--tasks <파일>] …`
+
+프로파일이 과제에 필요한 것을 실제로 담는지 측정한다. 과제 파일은 YAML
+(`id`, `question`, `expect` 키워드, `expect_file`)이고 `--init`이 템플릿을 쓴다.
+
+```sh
+ctxkit eval --init
+ctxkit eval --dry-run                       # 무료: 모델을 호출하지 않음
+ctxkit eval --profiles mid,light --models haiku,sonnet --out results.md
+```
+
+`--dry-run`은 프로파일별로 **포함률 두 개**를 낸다. 이 구분이 핵심이다:
+`outline_hit`은 정답 파일이 리포맵에 등장했는가("X는 어디 있나"에 답 가능),
+`content_hit`은 그 **원문**이 팩에 실렸는가("이 기본값은 뭔가"에 답 가능).
+`mid` 프로파일이 outline 100%·content 0%인 것은 설계대로 동작한다는 뜻이다.
+모델을 호출하는 실행은 예상 호출 수를 먼저 출력하고 확인을 받는다.
+
 ### `ctxkit sync [--link] [--force]`
 
 `AGENTS.md`를 도구별 규칙 파일로 배포한다. 대상은 `sync.targets`에서 온다:
@@ -249,6 +287,17 @@ MCP도 CLI도 없는 환경(챗창에 붙여넣는 사람 포함)까지 항상 �
 | `sync` | fail / warn | 도구별 파일이 `AGENTS.md`와 다름(stale) / 아직 생성 안 됨 |
 | `repomap` | warn | 소스가 `repomap.md`보다 최신 (mtime 휴리스틱) |
 | `secrets` | fail | 규칙·모듈 문서·생성 팩의 개인키 블록, `AKIA…` 키, `ghp_…` 토큰, `api_key = "…"` 형태 대입 |
+| `constraint` | fail | `constraints:`의 규칙 위반 — 허용 경로 밖 심볼 정의, 금지된 import, 금지 패턴 |
+| `duplicate` | warn | 같은 최상위 함수가 두 파일에 동일하게 정의됨 |
+| `orphan` | warn | 아무도 참조하지 않는 소스 파일 (심볼 추출 0건인 파일은 판단 보류) |
+| `coverage` | warn | 어느 모듈에도 속하지 않는 소스 파일 |
+| `rot-path` | warn | `AGENTS.md`가 존재하지 않는 경로를 가리킴 |
+| `rot-command` | warn | 문서화된 명령의 러너가 `PATH`에 없음 |
+| `rot-module` | fail | 모듈 글롭이 0개 파일과 매치 |
+
+뒤의 7개가 **저장소 건강** 축이다 — 게이트가 규칙만이 아니라 규칙이 서술하는
+코드를 검사한다. 기존 코드베이스에 도입할 때는 `ctxkit check --update-baseline`으로
+오늘의 위반을 기록해 **새 위반만** 실패하게 한다.
 
 시크릿 스캔은 정확히 외부 서비스에 붙여넣어지는 파일들을 대상으로 한다. 리포맵
 신선도가 경고인 이유는 git 체크아웃이 mtime을 보존하지 않기 때문이다.

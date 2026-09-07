@@ -99,10 +99,11 @@ Or `ctxkit get <query>` for just the relevant sections, or simply paste
 |---|---|---|
 | `ctxkit init [--auto] [--hooks] [--ci]` | Scaffold a repository | `AGENTS.md`, `context.config.yaml`, dirs, hook |
 | `ctxkit map [-b <tokens>]` | Rank files by cross-file references, outline their symbols | `docs/generated/repomap.md` |
-| `ctxkit pack [-p <profile>] [-m <module>]` | Assemble a context pack within a token budget | `docs/generated/packs/…md` |
+| `ctxkit pack [-p <profile>] [-m <module>] [-a <query>] [-d <range>]` | Assemble a context pack within a token budget, optionally shaped by a task or a diff | `docs/generated/packs/…md` |
 | `ctxkit sync [--link] [--force]` | Distribute rules from the single source | `CLAUDE.md`, `.cursorrules`, … |
-| `ctxkit check [--max-rule-lines <n>]` | Gate: rule length, sync freshness, staleness, secrets | exit 0/1 |
+| `ctxkit check [--run-commands] [--update-baseline]` | Gate: rules, sync, staleness, secrets, **plus repository health** | exit 0/1 |
 | `ctxkit get <query>` | Print matching context sections | stdout |
+| `ctxkit eval [--dry-run]` | Measure context profiles against a task file; `--dry-run` is free | results table |
 | `ctxkit serve` | Run the MCP server (stdio) | 5 tools |
 
 Every command takes `--stdout` where output is a document, and `-C <path>` to
@@ -116,7 +117,9 @@ run against another repository. Full flag-by-flag detail is in the
 | Code changed | `ctxkit map` (the hook/CI warns when the map is stale) |
 | Rules changed | edit `AGENTS.md`, then `ctxkit sync` — never edit `CLAUDE.md` directly |
 | Before committing | nothing: the pre-commit hook runs `ctxkit check` |
-| Handing work to a weaker model | `ctxkit pack --profile light --module <name>` |
+| Handing work to a weaker model | `ctxkit pack --profile light --about "<the task>"` |
+| Reviewing a change | `ctxkit pack --diff --staged` |
+| Choosing a profile with evidence | `ctxkit eval --dry-run` (no model calls, no cost) |
 | Onboarding another repo | `ctxkit -C /path/to/repo init --auto --hooks` |
 
 The 10-minute onboarding checklist is [docs/onboarding.md](docs/onboarding.md).
@@ -230,6 +233,44 @@ and prints its approximate token count. Sections follow the profile's
 `--repomix` delegates to the external [Repomix](https://github.com/yamadashy/repomix)
 CLI when installed, falling back to the internal packer otherwise.
 
+**Shaping the pack.** Two flags change *which* files are chosen, not just how
+many fit:
+
+```sh
+ctxkit pack --about "gold tier discount rounding"   # rank by task relevance (BM25)
+ctxkit pack --diff --staged                          # center on the change under review
+ctxkit pack --about "…" --explain                    # why each file placed where it did
+```
+
+`--about` scores every file with BM25 over three fields — path (weight 3),
+symbol names (2) and body (1) — and adds it to the reference ranking. CJK text
+is indexed as character bigrams, so a Korean query survives particle changes
+(할인율을 still matches 할인율). There is no English stemming, so "secret" does
+not match the identifier `secrets`; use the word that appears in the code.
+
+`--diff` takes a git range or `--staged`. The changed files are *seeds*: they
+are never dropped for budget reasons, and if they alone exceed the budget the
+section degrades to a seed path list plus the top-ranked seed's contents.
+
+### `ctxkit eval [--init] [--dry-run] [--tasks <file>] …`
+
+Measures whether a profile actually carries what a task needs. Task files are
+YAML (`id`, `question`, `expect` keywords, `expect_file`); `--init` writes a
+template.
+
+```sh
+ctxkit eval --init
+ctxkit eval --dry-run                       # free: no model is called
+ctxkit eval --profiles mid,light --models haiku,sonnet --out results.md
+```
+
+`--dry-run` reports two inclusion rates per profile, and the distinction
+matters: `outline_hit` is whether the answering file reached the repository
+map (enough for "where is X?"), `content_hit` whether its source reached the
+pack (needed for "what is this default value?"). A `mid` profile scoring
+100% outline and 0% content is behaving exactly as designed. Runs that call
+models print the planned call count and ask before spending anything.
+
 ### `ctxkit sync [--link] [--force]`
 
 Distributes `AGENTS.md` to per-tool rule files. Targets come from
@@ -258,6 +299,18 @@ The gate. Exits 1 if any check fails.
 | `sync` | fail / warn | per-tool file differs from `AGENTS.md` (stale) / not yet generated |
 | `repomap` | warn | a source file is newer than `repomap.md` (mtime heuristic) |
 | `secrets` | fail | private-key blocks, `AKIA…` keys, `ghp_…` tokens, `api_key = "…"`-shaped assignments in rules, module docs or generated packs |
+| `constraint` | fail | a rule from `constraints:` is broken — a symbol defined outside its allowed paths, a forbidden import, a forbidden pattern |
+| `duplicate` | warn | the same top-level function defined identically in two files |
+| `orphan` | warn | a source file nothing else references (abstains on files with no extractable symbols) |
+| `coverage` | warn | a source file belonging to no module |
+| `rot-path` | warn | `AGENTS.md` names a path that does not exist |
+| `rot-command` | warn | a documented command's runner is not on `PATH` |
+| `rot-module` | fail | a module glob matches zero files |
+
+The last seven are the repository-health half: the gate checks the code the
+rules describe, not only the rules. Adopt them on an existing codebase with
+`ctxkit check --update-baseline`, which records today's violations so only
+*new* ones fail.
 
 The secret scan targets exactly the files that get pasted into external
 services. Repomap staleness is a warning because git checkouts do not
