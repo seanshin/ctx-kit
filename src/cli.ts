@@ -130,7 +130,7 @@ program
   .option("-p, --profile <name>", "consumption profile", "light")
   .option("-m, --module <name>", "restrict to a module defined in the config")
   .option("-a, --about <query>", "rank files by relevance to this task (planned: 0.4.0)")
-  .option("-d, --diff <range>", "center the pack on changed files; range or --staged (planned: 0.4.0)")
+  .option("-d, --diff <range>", "center the pack on changed files; a git range or --staged")
   .option("--explain", "print the score breakdown for the top files (planned: 0.4.0)")
   .option("--repomix", "delegate packing to the external Repomix CLI if installed")
   .option("--stdout", "print to stdout instead of writing the file")

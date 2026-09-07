@@ -1,7 +1,7 @@
-<!-- ctxkit:v1 repomap generated=2026-09-07T07:55:23.314Z budget=8000 -->
+<!-- ctxkit:v1 repomap generated=2026-09-07T07:56:57.670Z budget=8000 -->
 # Repository Map
 
-Files: 29 source files scanned. Ranked by cross-file references.
+Files: 31 source files scanned. Ranked by cross-file references.
 
 ## src/core/config.ts
 - L5 const `CONFIG_FILE`
@@ -67,11 +67,11 @@ Files: 29 source files scanned. Ranked by cross-file references.
 - L65 function `rankFiles(config: CtxConfig, opts: RankOptions = {})`
 - L105 function `buildRepoMap(config: CtxConfig, opts: RepoMapOptions = {})`
 
-## src/core/fs.ts
-- L6 interface `WalkOptions`
-- L15 function `walkFiles(root: string, opts: WalkOptions = {})`
-- L25 function `visit`
-- L57 function `readText(root: string, rel: string)`
+## src/mcp.ts
+- L20 function `text(s: string)`
+- L24 function `escapeRegExp(s: string)`
+- L28 function `sourceFiles(config: CtxConfig)`
+- L34 function `startMcpServer(rootDir: string)`
 
 ## src/adapters/symbols.ts
 - L10 interface `CodeSymbol`
@@ -79,19 +79,27 @@ Files: 29 source files scanned. Ranked by cross-file references.
 - L30 interface `Rule`
 - L91 function `extractSymbols(relPath: string, content: string)`
 
-## src/mcp.ts
-- L20 function `text(s: string)`
-- L24 function `escapeRegExp(s: string)`
-- L28 function `sourceFiles(config: CtxConfig)`
-- L34 function `startMcpServer(rootDir: string)`
+## src/core/fs.ts
+- L6 interface `WalkOptions`
+- L15 function `walkFiles(root: string, opts: WalkOptions = {})`
+- L25 function `visit`
+- L57 function `readText(root: string, rel: string)`
+
+## src/core/select.ts
+- L17 interface `SelectOptions`
+- L26 interface `Selection`
+- L38 function `moduleFiles(config: CtxConfig, moduleName: string)`
+- L47 function `allSourceFiles(config: CtxConfig)`
+- L53 function `select(config: CtxConfig, opts: SelectOptions = {})`
 
 ## src/core/pack.ts
 - L16 interface `PackOptions`
 - L25 interface `PackResult`
 - L42 function `readAgents(config: CtxConfig)`
 - L47 function `agentsSummary(agents: string, maxLines = 40)`
-- L51 function `targetFiles(config: CtxConfig, opts: PackOptions)`
-- L63 function `buildPack(config: CtxConfig, opts: PackOptions)`
+- L51 function `fileBlock(config: CtxConfig, rel: string)`
+- L59 function `targetFiles(config: CtxConfig, opts: PackOptions)`
+- L72 function `buildPack(config: CtxConfig, opts: PackOptions)`
 
 ## src/core/sync.ts
 - L20 const `SYNC_TARGETS`
@@ -104,12 +112,8 @@ Files: 29 source files scanned. Ranked by cross-file references.
 - L113 interface `SyncStatus`
 - L119 function `checkSync(config: CtxConfig)`
 
-## src/core/select.ts
-- L16 interface `SelectOptions`
-- L25 interface `Selection`
-- L37 function `moduleFiles(config: CtxConfig, moduleName: string)`
-- L46 function `allSourceFiles(config: CtxConfig)`
-- L52 function `select(config: CtxConfig, opts: SelectOptions = {})`
+## src/core/tokens.ts
+- L7 function `approxTokens(text: string)`
 
 ## src/core/detect.ts
 - L13 interface `Detected`
@@ -120,15 +124,22 @@ Files: 29 source files scanned. Ranked by cross-file references.
 - L104 function `renderConfig(detected: Detected)`
 - L129 function `renderAgents(detected: Detected)`
 
-## src/core/tokens.ts
-- L7 function `approxTokens(text: string)`
-
 ## src/core/get.ts
 - L16 interface `GetOptions`
 - L21 interface `Section`
 - L28 function `splitSections(source: string, text: string)`
 - L40 function `countMatches(haystack: string, needle: string)`
 - L52 function `getContext(config: CtxConfig, query: string, opts: GetOptions = {})`
+
+## src/core/git.ts
+- L10 function `git(root: string, args: string[])`
+- L15 function `isRepo(root: string)`
+- L26 function `diffFiles(root: string, range: string)`
+- L39 function `logCommits(root: string, limit = 500)`
+
+## src/select/diff.ts
+- L27 function `escapeRegExp(s: string)`
+- L36 function `diffSelection(config: CtxConfig, range: string)`
 
 ## src/core/version.ts
 - L4 function `VERSION`
@@ -163,14 +174,12 @@ Files: 29 source files scanned. Ranked by cross-file references.
 ## src/checks/sync.ts
 - L5 const `syncCheck`
 
-## src/core/git.ts
-- L10 function `git(root: string, args: string[])`
-- L15 function `isRepo(root: string)`
-- L26 function `diffFiles(root: string, range: string)`
-- L39 function `logCommits(root: string, limit = 500)`
-
 ## test/core.test.mjs
 - L20 function `makeRepo(files = {})`
+
+## test/diff.test.mjs
+- L12 function `git(cwd, args)`
+- L25 function `makeGitRepo(commits)`
 
 ## test/mcp.test.mjs
 - L21 function `send(method, params)`
