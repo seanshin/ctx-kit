@@ -25,6 +25,10 @@ export interface PackResult {
   relOutPath: string;
 }
 
+/** Size of the cross-module orientation index inside a module pack's map. */
+const ELSEWHERE_FILES = 20;
+const ELSEWHERE_TOKENS = 300;
+
 const LANG_BY_EXT: Record<string, string> = {
   ".ts": "ts", ".tsx": "tsx", ".js": "js", ".jsx": "jsx", ".py": "python",
   ".go": "go", ".rs": "rust", ".java": "java", ".kt": "kotlin", ".cs": "csharp",
@@ -40,20 +44,21 @@ function agentsSummary(agents: string, maxLines = 40): string {
   return agents.split("\n").slice(0, maxLines).join("\n");
 }
 
-function targetFiles(config: CtxConfig, moduleName?: string): string[] {
-  let files: string[];
-  if (moduleName) {
-    const globs = config.modules[moduleName];
-    if (!globs) {
-      const known = Object.keys(config.modules).join(", ") || "(none defined)";
-      throw new Error(`unknown module "${moduleName}" — defined modules: ${known}`);
-    }
-    files = walkFiles(config.root, { include: globs, exclude: config.exclude });
-  } else {
-    files = walkFiles(config.root, { exclude: config.exclude }).filter((f) =>
-      SOURCE_EXTENSIONS.has(extname(f)),
-    );
+function moduleFiles(config: CtxConfig, moduleName: string): string[] {
+  const globs = config.modules[moduleName];
+  if (!globs) {
+    const known = Object.keys(config.modules).join(", ") || "(none defined)";
+    throw new Error(`unknown module "${moduleName}" — defined modules: ${known}`);
   }
+  return walkFiles(config.root, { include: globs, exclude: config.exclude });
+}
+
+function targetFiles(config: CtxConfig, moduleName?: string): string[] {
+  const files = moduleName
+    ? moduleFiles(config, moduleName)
+    : walkFiles(config.root, { exclude: config.exclude }).filter((f) =>
+        SOURCE_EXTENSIONS.has(extname(f)),
+      );
   // Budget cuts drop the tail, so order by importance, not alphabet.
   return rankFiles(config, files).map((e) => e.rel);
 }
@@ -95,29 +100,62 @@ export function buildPack(config: CtxConfig, opts: PackOptions): PackResult {
         // would otherwise starve the target-files section (found on the
         // first real-scale repo — an 8k-token map in a 12k-token pack).
         const mapBudget = Math.min(Math.floor(budget / 3), 4000);
-        const cached = join(config.root, GENERATED_DIR, "repomap.md");
         let map: string | null = null;
-        if (existsSync(cached)) {
-          const cachedText = readFileSync(cached, "utf8");
-          if (approxTokens(cachedText) <= mapBudget) map = cachedText;
+        if (opts.module) {
+          // A module pack gets a module-scoped map; the repo-wide cache
+          // would spend the budget on unrelated files. But scoping alone
+          // blinds the model to the rest of the repo (measured: it could no
+          // longer say where an outside symbol lived), so a paths-only
+          // index of the most-referenced files elsewhere is appended — a
+          // few hundred tokens that restore orientation.
+          const own = new Set(moduleFiles(config, opts.module));
+          map = buildRepoMap(config, {
+            budget: mapBudget - ELSEWHERE_TOKENS,
+            files: [...own],
+            scope: opts.module,
+          });
+          const elsewhere = rankFiles(config)
+            .filter((e) => !own.has(e.rel))
+            .slice(0, ELSEWHERE_FILES)
+            .map((e) => `- ${e.rel}`);
+          if (elsewhere.length > 0) {
+            map +=
+              `\n### Elsewhere in the repository (most referenced; ask ` +
+              `search_symbol or read them directly)\n${elsewhere.join("\n")}\n`;
+          }
+        } else {
+          const cached = join(config.root, GENERATED_DIR, "repomap.md");
+          if (existsSync(cached)) {
+            const cachedText = readFileSync(cached, "utf8");
+            if (approxTokens(cachedText) <= mapBudget) map = cachedText;
+          }
+          map ??= buildRepoMap(config, { budget: mapBudget });
         }
-        map ??= buildRepoMap(config, { budget: mapBudget });
         out += `## Repository Map\n\n${map.trim()}\n\n`;
         break;
       }
       case "target-files": {
         out += `## Target Files\n\n`;
         const reserve = tailReminder ? approxTokens(tailReminder) + 50 : 0;
+        let omitted = 0;
         for (const rel of targetFiles(config, opts.module)) {
           const text = readText(config.root, rel);
           if (text === null) continue;
           const lang = LANG_BY_EXT[extname(rel)] ?? "";
           const block = `### ${rel}\n\n\`\`\`${lang}\n${text.trimEnd()}\n\`\`\`\n\n`;
+          // Skip rather than stop: one oversized file in the middle of the
+          // ranking must not forfeit the remaining budget for the smaller,
+          // still-relevant files behind it.
           if (approxTokens(out + block) + reserve > budget) {
-            out += `_…remaining files omitted (budget ${budget} tokens). Request them individually._\n\n`;
-            break;
+            omitted++;
+            continue;
           }
           out += block;
+        }
+        if (omitted > 0) {
+          out +=
+            `_…${omitted} file(s) omitted: they did not fit the ${budget}-token budget. ` +
+            `Request them individually, or use a profile with a larger budget._\n\n`;
         }
         break;
       }

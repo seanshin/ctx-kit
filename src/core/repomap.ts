@@ -14,6 +14,10 @@ import { SOURCE_EXTENSIONS, extractSymbols, type CodeSymbol } from "../adapters/
 
 export interface RepoMapOptions {
   budget?: number;
+  /** Restrict the map to these files (repo-relative), e.g. one module. */
+  files?: string[];
+  /** Scope label for the header, e.g. a module name. */
+  scope?: string;
 }
 
 export interface RankedFile {
@@ -79,11 +83,13 @@ export function rankFiles(config: CtxConfig, relFiles?: string[]): RankedFile[] 
 
 export function buildRepoMap(config: CtxConfig, opts: RepoMapOptions = {}): string {
   const budget = opts.budget ?? 8000;
-  const entries = rankFiles(config);
+  const entries = rankFiles(config, opts.files);
 
   const header = [
-    `<!-- ctxkit:v1 repomap generated=${new Date().toISOString()} budget=${budget} -->`,
-    `# Repository Map`,
+    `<!-- ctxkit:v1 repomap generated=${new Date().toISOString()} budget=${budget}` +
+      (opts.scope ? ` scope=${opts.scope}` : "") +
+      ` -->`,
+    opts.scope ? `# Repository Map: ${opts.scope}` : `# Repository Map`,
     ``,
     `Files: ${entries.length} source files scanned. Ranked by cross-file references.`,
     ``,

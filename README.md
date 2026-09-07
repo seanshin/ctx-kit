@@ -212,9 +212,21 @@ surfaces first. Files past the budget are listed as an omitted count.
 
 Assembles a context pack into `docs/generated/packs/<module|all>-<profile>.md`
 and prints its approximate token count. Sections follow the profile's
-`inject` list; target files are emitted in reference-rank order so that a
-budget cut drops the *least* referenced files, and the embedded map is capped
-at ⅓ of the pack budget (max 4000) so it can never starve file contents.
+`inject` list. Three budget rules keep the pack useful at scale:
+
+- The embedded map is capped at ⅓ of the pack budget (max 4000) so it can
+  never starve file contents.
+- With `--module`, the embedded map is **scoped to that module** rather than
+  the whole repository, plus a paths-only index of the most-referenced files
+  elsewhere. Measured trade-off: a module pack cannot say *where an outside
+  symbol is defined* (the index carries paths, not outlines) — send those
+  questions to `search_symbol`, or drop `--module`. In exchange the module's
+  own files get the budget: on a production module, 4 unrelated files left
+  the map and included source files went from 4 to 13.
+- Target files are emitted in reference-rank order, and a file too large to
+  fit is skipped rather than ending the section — one oversized file in the
+  middle of the ranking must not forfeit the budget for the smaller files
+  behind it. Skipped files are reported as a count.
 `--repomix` delegates to the external [Repomix](https://github.com/yamadashy/repomix)
 CLI when installed, falling back to the internal packer otherwise.
 
@@ -313,7 +325,10 @@ the start and end of a long prompt far better than the middle.
 Python, Go, Rust, Java, Kotlin, C#, Ruby, PHP, Swift, C/C++.
 
 Token counts are a `chars/4` approximation — accurate enough for budgeting,
-and replaceable by a real tokenizer behind the same interface.
+and replaceable by a real tokenizer behind the same interface. Note that it
+**underestimates CJK text** (Korean, Japanese, Chinese comments cost closer to
+one token per character), so leave headroom or lower the budget for codebases
+with substantial CJK content.
 
 ## MCP tool reference
 

@@ -1,0 +1,20 @@
+# ctxkit configuration (schema v1) — ctx-kit running on itself.
+version: 1
+
+modules:
+  core:       ["src/core/**"]        # tool-neutral logic: config, rank, pack, sync, check
+  adapters:   ["src/adapters/**"]    # symbol extraction + external-tool wrappers
+  interfaces: ["src/cli.ts", "src/mcp.ts"]
+  eval:       ["eval/**"]            # measurement harness, fixture, findings
+  test:       ["test/**"]
+
+exclude:
+  - "eval/fixture/**"                # deliberately trivial code; noise in the map
+
+profiles:
+  frontier: { inject: [agents], budget: 4000 }
+  mid:      { inject: [agents, repomap], budget: 24000 }
+  light:    { inject: [agents-summary, repomap, target-files], budget: 12000 }
+
+sync:
+  targets: [claude]

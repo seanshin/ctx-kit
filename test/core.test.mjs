@@ -95,6 +95,43 @@ test("pack: honors section order, module filter and budget", () => {
   assert.ok(tiny.tokens <= 400, `tiny pack exceeded budget: ${tiny.tokens}`);
 });
 
+test("pack: a module pack embeds a module-scoped map, not the repo-wide one", () => {
+  const { root } = makeRepo({
+    "context.config.yaml": 'version: 1\nmodules:\n  core:\n    - "src/**"\n',
+    "web/ui.py": "def render_widget():\n    return 1\n",
+    "web/page.py": "from ui import render_widget\n\ndef page():\n    return render_widget()\n",
+  });
+  const config = loadConfig(root);
+  const pack = buildPack(config, { profile: "light", module: "core" });
+  const map = pack.content.split("## Repository Map")[1].split("## Target Files")[0];
+  const [outline, elsewhere = ""] = map.split("### Elsewhere in the repository");
+
+  assert.match(outline, /scope=core/);
+  assert.match(outline, /## src\/core\.py/);
+  assert.ok(!outline.includes("## web/"), "symbol outlines leaked from another module");
+  // Orientation index: paths only, so the model still knows what exists.
+  assert.match(elsewhere, /web\/ui\.py/);
+  assert.ok(!/^- L\d+ /m.test(elsewhere), "the orientation index must stay paths-only");
+});
+
+test("pack: an oversized file is skipped, not treated as a stop sign", () => {
+  const { root } = makeRepo({
+    // Ranked first (referenced), then a huge file, then a small one.
+    "src/huge.py": `from core import compute_price\n${"# padding\n".repeat(4000)}`,
+    "src/small.py": "from core import compute_price\n\ndef tiny():\n    return compute_price(2)\n",
+  });
+  const config = loadConfig(root);
+  const profiles = {
+    ...config.profiles,
+    light: { inject: ["target-files"], budget: 3000 },
+  };
+  const pack = buildPack({ ...config, profiles }, { profile: "light" });
+  assert.ok(!pack.content.includes("### src/huge.py"), "huge file should not fit");
+  assert.match(pack.content, /### src\/small\.py/, "smaller file after it must still be included");
+  assert.match(pack.content, /1 file\(s\) omitted/);
+  assert.ok(pack.tokens <= 3000, `budget exceeded: ${pack.tokens}`);
+});
+
 test("sync: writes generated copies, protects foreign files, detects staleness", () => {
   const { root, config } = makeRepo();
   assert.equal(syncRules(config)[0].action, "written");

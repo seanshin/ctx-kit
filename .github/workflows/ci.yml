@@ -1,0 +1,40 @@
+# ctx-kit CI — runs the test suite and then ctx-kit's own gate against the
+# code in this commit (not the published package), so the tool is dogfooded
+# on every push. Free: this repository is public.
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [20, 22]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm test
+
+  self-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Regenerate the repository map
+        run: node dist/cli.js map
+      - name: Rules, sync freshness, staleness and secrets
+        run: node dist/cli.js check
+      - name: Fail if the committed map is out of date
+        run: git diff --exit-code docs/generated/repomap.md

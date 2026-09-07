@@ -170,15 +170,26 @@ the suite — from occupying the entire budget.
 ### 5.3 Pack assembly
 
 Packs are assembled section by section in the profile's declared order, with
-two invariants that only reveal their necessity at scale:
+four invariants that only reveal their necessity at scale:
 
 - **Embedded sections get a bounded share.** The repo map is capped at
   ⅓ of the pack budget (max 4000 tokens), whether freshly built or read from
   cache. Without this, a cached 8K map inside a 12K pack leaves nothing for
   source.
+- **A module pack gets a module-scoped map**, plus a paths-only index of the
+  most-referenced files elsewhere. Reusing the repo-wide map spends the
+  artifact's most expensive tokens on files the task cannot touch; measured
+  on a production repo, a `risk` module pack carried four unrelated frontend
+  files before this rule, and afterwards fit 13 of its own source files
+  instead of 4. The measured cost is stated in §6.4: a module pack can no
+  longer locate a symbol defined outside the module.
 - **Order what the budget will cut.** Target files are emitted in
   reference-rank order, so truncation removes the least-referenced files
   rather than whichever names sort last.
+- **A file that does not fit is skipped, not a stop sign.** Ending the
+  section at the first oversized file forfeits the remaining budget for the
+  smaller, still-relevant files behind it — on the same production module
+  this left 45% of the budget unspent.
 
 Full pseudocode is in [Appendix A](#appendix-a-pack-assembly-pseudocode).
 
@@ -236,7 +247,20 @@ a small fraction of any pack's tokens. A side effect worth recording: because
 `search_symbol` returns reference lines alongside definitions, the parameter's
 default value appeared in the output without opening the file.
 
-### 6.3 A caution the data produced
+### 6.3 Scoping a module pack: a measured boundary
+
+After module-scoped maps were introduced (§5.3), the production matrix was
+re-run. The two in-module tasks were unchanged, but the task asking where a
+symbol *outside* the module is defined went from passing to failing on all
+four cells. Asking the same question of a repo-wide pack — the same models,
+same harness, only `--module` dropped — passes 4/4 (mid ~4.2K tokens, light
+~12.0K). The boundary is therefore exact and not a regression: **a module
+pack answers questions inside its module; cross-module symbol location
+belongs to Tier 3 or to a repo-wide pack.** All four models said "the context
+does not contain this" rather than guessing from the path index, which is the
+failure mode a context system should produce.
+
+### 6.4 A caution the data produced
 
 In Round 1 both models answered a call-graph question correctly from the map
 alone, although the map contains no call information: they inferred it from
@@ -328,14 +352,18 @@ profile choice an empirical question rather than a matter of taste.
   short and common names are filtered, but the heuristic remains lexical.
 - **Outline-grade symbols.** Regex extraction misses nested and dynamically
   defined constructs. The adapter slot for tree-sitter exists.
-- **Approximate tokens.** `chars/4` is adequate for budgeting but not exact;
-  a tokenizer adapter would tighten budget boundaries.
+- **Approximate tokens.** `chars/4` is adequate for budgeting but not exact,
+  and it **underestimates CJK text**, where a character costs closer to a
+  whole token; codebases with substantial Korean, Japanese or Chinese
+  comments should leave headroom. A tokenizer adapter would remove the
+  caveat.
 - **Single production onboarding.** One repository, one language pair. A
   second onboarding — migrating a large hand-written rule file into the
   AGENTS.md flow — is planned.
 
-Roadmap: module-scoped maps, tokenizer-accurate budgets, a true local-LLM
-measurement round, and per-repo task suites contributed alongside onboardings.
+Roadmap: tokenizer-accurate budgets, a true local-LLM measurement round, a
+tree-sitter symbol adapter, and per-repo task suites contributed alongside
+onboardings.
 
 ---
 
