@@ -1,7 +1,7 @@
-<!-- ctxkit:v1 repomap generated=2026-09-07T08:04:35.996Z budget=8000 -->
+<!-- ctxkit:v1 repomap generated=2026-09-07T08:06:13.948Z budget=8000 -->
 # Repository Map
 
-Files: 36 source files scanned. Ranked by cross-file references.
+Files: 39 source files scanned. Ranked by cross-file references.
 
 ## src/core/config.ts
 - L5 const `CONFIG_FILE`
@@ -59,6 +59,14 @@ Files: 36 source files scanned. Ranked by cross-file references.
 - L23 interface `CheckContext`
 - L34 interface `Check`
 
+## src/core/repomap.ts
+- L16 interface `RepoMapOptions`
+- L24 interface `RankedFile`
+- L50 type `Scorer`
+- L52 interface `RankOptions`
+- L63 function `rankFiles(config: CtxConfig, opts: RankOptions = {})`
+- L124 function `buildRepoMap(config: CtxConfig, opts: RepoMapOptions = {})`
+
 ## eval/run.mjs
 - L40 function `argVal`
 - L57 function `profiles`
@@ -75,13 +83,17 @@ Files: 36 source files scanned. Ranked by cross-file references.
 - L30 interface `Rule`
 - L91 function `extractSymbols(relPath: string, content: string)`
 
-## src/core/repomap.ts
-- L16 interface `RepoMapOptions`
-- L24 interface `RankedFile`
-- L50 type `Scorer`
-- L52 interface `RankOptions`
-- L63 function `rankFiles(config: CtxConfig, opts: RankOptions = {})`
-- L116 function `buildRepoMap(config: CtxConfig, opts: RepoMapOptions = {})`
+## src/core/pack.ts
+- L17 interface `PackOptions`
+- L26 interface `PackResult`
+- L43 function `readAgents(config: CtxConfig)`
+- L48 function `agentsSummary(agents: string, maxLines = 40)`
+- L52 function `fileBlock(config: CtxConfig, rel: string)`
+- L60 function `targetFiles(config: CtxConfig, opts: PackOptions)`
+- L78 function `buildPack(config: CtxConfig, opts: PackOptions)`
+- L226 interface `ExplainRow`
+- L251 function `explainPack(config: CtxConfig, opts: PackOptions)`
+- L263 function `shownRef`
 
 ## src/core/select.ts
 - L17 interface `SelectOptions`
@@ -93,14 +105,12 @@ Files: 36 source files scanned. Ranked by cross-file references.
 ## src/core/check.ts
 - L14 function `runChecks(config: CtxConfig, opts: CheckOptions = {})`
 
-## src/core/pack.ts
-- L16 interface `PackOptions`
-- L25 interface `PackResult`
-- L42 function `readAgents(config: CtxConfig)`
-- L47 function `agentsSummary(agents: string, maxLines = 40)`
-- L51 function `fileBlock(config: CtxConfig, rel: string)`
-- L59 function `targetFiles(config: CtxConfig, opts: PackOptions)`
-- L72 function `buildPack(config: CtxConfig, opts: PackOptions)`
+## src/core/retrieve.ts
+- L30 function `splitCompoundWord(word: string)`
+- L54 function `tokenize(text: string)`
+- L73 interface `Bm25Doc`
+- L78 interface `Bm25Options`
+- L97 function `bm25(docs: Bm25Doc[], queryTerms: string[], opts: Bm25Options = {})`
 
 ## src/core/sync.ts
 - L20 const `SYNC_TARGETS`
@@ -140,12 +150,23 @@ Files: 36 source files scanned. Ranked by cross-file references.
 - L104 function `renderConfig(detected: Detected)`
 - L129 function `renderAgents(detected: Detected)`
 
+## src/scorers/query.ts
+- L25 function `scoreQuery(files: RankedFile[], config: CtxConfig, query: string)`
+- L66 function `makeQueryScorer(query: string)`
+
 ## src/core/get.ts
 - L16 interface `GetOptions`
 - L21 interface `Section`
 - L28 function `splitSections(source: string, text: string)`
 - L40 function `countMatches(haystack: string, needle: string)`
 - L52 function `getContext(config: CtxConfig, query: string, opts: GetOptions = {})`
+
+## test/about.test.mjs
+- L17 function `makeRepo(files = {})`
+
+## test/eval.test.mjs
+- L17 function `makeRepo(files = {})`
+- L33 function `writeTasks(root, yaml)`
 
 ## src/core/text.ts
 - L2 function `escapeRegExp(s: string)`
@@ -185,10 +206,6 @@ Files: 36 source files scanned. Ranked by cross-file references.
 - L26 function `diffFiles(root: string, range: string)`
 - L39 function `logCommits(root: string, limit = 500)`
 
-## test/eval.test.mjs
-- L17 function `makeRepo(files = {})`
-- L33 function `writeTasks(root, yaml)`
-
 ## src/core/version.ts
 - L4 function `VERSION`
 
@@ -199,13 +216,15 @@ Files: 36 source files scanned. Ranked by cross-file references.
 ## test/core.test.mjs
 - L20 function `makeRepo(files = {})`
 
+## src/cli.ts
+- L37 function `rootDir()`
+- L45 function `printExplain(rows: ExplainRow[])`
+- L46 function `col`
+- L61 function `writeOutput(root: string, relPath: string, content: string, stdout: boolean)`
+
 ## src/adapters/repomix.ts
 - L11 function `repomixAvailable()`
 - L16 function `runRepomix(root: string, args: string[])`
-
-## src/cli.ts
-- L37 function `rootDir()`
-- L41 function `writeOutput(root: string, relPath: string, content: string, stdout: boolean)`
 
 ## src/checks/index.ts
 - L15 const `CHECKS`

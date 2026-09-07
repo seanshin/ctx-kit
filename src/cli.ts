@@ -150,9 +150,9 @@ program
   .description(`assemble a profile-aware context pack -> ${GENERATED_DIR}/packs/`)
   .option("-p, --profile <name>", "consumption profile", "light")
   .option("-m, --module <name>", "restrict to a module defined in the config")
-  .option("-a, --about <query>", "rank files by relevance to this task (planned: 0.4.0)")
+  .option("-a, --about <query>", "rank files by relevance to this task (BM25 over path, symbols, body)")
   .option("-d, --diff <range>", "center the pack on changed files; a git range or --staged")
-  .option("--explain", "print the score breakdown for the top files (planned: 0.4.0)")
+  .option("--explain", "print the score breakdown for the top files")
   .option("--repomix", "delegate packing to the external Repomix CLI if installed")
   .option("--stdout", "print to stdout instead of writing the file")
   .action((opts: {
@@ -215,9 +215,9 @@ program
   .command("check")
   .description("CI gate: rule length, sync freshness, repomap staleness, secret scan")
   .option("--max-rule-lines <n>", "maximum AGENTS.md line count", "150")
-  .option("--run-commands", "also run the commands documented in AGENTS.md — trusted repositories only (planned: 0.3.1)")
-  .option("--update-baseline", "record current violations so only new ones fail (planned: 0.3.1)")
-  .option("--no-baseline", "report every violation, ignoring the recorded baseline (planned: 0.3.1)")
+  .option("--run-commands", "also run the commands documented in AGENTS.md — trusted repositories only")
+  .option("--update-baseline", "record current violations so only new ones fail")
+  .option("--no-baseline", "report every violation, ignoring the recorded baseline")
   .action((opts: { maxRuleLines: string; runCommands?: boolean; updateBaseline?: boolean; baseline?: boolean }) => {
     const config = loadConfig(rootDir());
     const noBaseline = opts.baseline === false;
@@ -260,7 +260,7 @@ program
 
 program
   .command("eval")
-  .description("(planned: 0.3.0 — measure context profiles against a task file)")
+  .description("measure context profiles against a task file (--dry-run is free)")
   .option("--init", "write a tasks.yaml template")
   .option("--tasks <file>", "task definitions")
   .option("--dry-run", "inclusion rates only, without calling any model (free)")

@@ -251,15 +251,26 @@ export interface ExplainRow {
 export function explainPack(config: CtxConfig, opts: PackOptions): ExplainRow[] {
   const selection = select(config, { module: opts.module, about: opts.about, diff: opts.diff });
   const baseline = rankFiles(config, { files: selection.files });
-  const contribution = opts.about
-    ? makeQueryScorer(opts.about)(baseline, config)
-    : new Map<string, number>();
+  const scorers = opts.about ? [makeQueryScorer(opts.about)] : [];
 
-  const rows = baseline.map((e) => {
-    const q = contribution.get(e.rel) ?? 0;
-    return { rel: e.rel, referenceScore: e.score, queryScore: q, finalScore: e.score + q };
-  });
-  rows.sort((a, b) => b.finalScore - a.finalScore || a.rel.localeCompare(b.rel));
+  // Report the ranking that actually happens. `rankFiles` normalizes the
+  // reference score once a scorer is present, so recomputing the sum here
+  // would show numbers the packer never used — and an explanation that does
+  // not match the decision is worse than none.
+  const actual = rankFiles(config, { files: selection.files, scorers });
+  const rawRef = new Map(baseline.map((e) => [e.rel, e.score]));
+  const maxRef = Math.max(...baseline.map((e) => e.score), 0);
+  const shownRef = (rel: string): number => {
+    const raw = rawRef.get(rel) ?? 0;
+    return scorers.length > 0 && maxRef > 0 ? raw / maxRef : raw;
+  };
+
+  const rows = actual.map((e) => ({
+    rel: e.rel,
+    referenceScore: shownRef(e.rel),
+    queryScore: e.score - shownRef(e.rel),
+    finalScore: e.score,
+  }));
 
   const pack = buildPack(config, opts);
   const targetSection = pack.content.split("## Target Files")[1] ?? "";

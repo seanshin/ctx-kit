@@ -77,7 +77,7 @@ export async function startMcpServer(rootDir: string): Promise<void> {
         about: z
           .string()
           .optional()
-          .describe("task description; ranks the module's files by relevance (planned: 0.4.0)"),
+          .describe("task description; ranks the module's files by relevance"),
       },
     },
     async ({ module, profile, about }) => {
@@ -146,11 +146,11 @@ export async function startMcpServer(rootDir: string): Promise<void> {
       inputSchema: {
         profile: z.string().optional().describe("consumption profile (default: light)"),
         module: z.string().optional().describe("restrict to one module from context.config.yaml"),
-        about: z.string().optional().describe("task description; ranks files by relevance (planned: 0.4.0)"),
+        about: z.string().optional().describe("task description; ranks files by relevance"),
         diff: z
           .string()
           .optional()
-          .describe("git revision range or '--staged'; centers the pack on changes (planned: 0.4.0)"),
+          .describe("git revision range or '--staged'; centers the pack on changes"),
       },
     },
     async ({ profile, module, about, diff }) => {

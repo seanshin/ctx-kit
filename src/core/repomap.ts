@@ -88,7 +88,6 @@ export function rankFiles(config: CtxConfig, opts: RankOptions = {}): RankedFile
       }
     }
     entry.score += Math.min(entry.symbols.length, 10) * 0.5; // mild self-weight, capped
-    if (TEST_PATH_RE.test(entry.rel)) entry.score *= 0.2;
   }
 
   const scorers = opts.scorers ?? [];
@@ -107,6 +106,15 @@ export function rankFiles(config: CtxConfig, opts: RankOptions = {}): RankedFile
       const contribution = scorer(entries, config);
       for (const entry of entries) entry.score += contribution.get(entry.rel) ?? 0;
     }
+  }
+
+  // Demote tests last, so the demotion covers every signal. Applying it to
+  // the reference score alone let a query lift a test file to first place
+  // past the implementation it tests — the exact ordering the rule exists to
+  // prevent. With no scorers this is the same multiplication as before, on
+  // the same value, so the plain ranking is unchanged.
+  for (const entry of entries) {
+    if (TEST_PATH_RE.test(entry.rel)) entry.score *= 0.2;
   }
 
   entries.sort((a, b) => b.score - a.score || a.rel.localeCompare(b.rel));
