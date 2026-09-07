@@ -36,5 +36,9 @@ jobs:
         run: node dist/cli.js map
       - name: Rules, sync freshness, staleness and secrets
         run: node dist/cli.js check
+      # Content only: the header carries a generation timestamp that
+      # changes on every run and would otherwise always differ.
       - name: Fail if the committed map is out of date
-        run: git diff --exit-code docs/generated/repomap.md
+        run: |
+          git diff --exit-code -I '^<!-- ctxkit:v1 repomap' docs/generated/repomap.md \
+            || { echo "::error::docs/generated/repomap.md is stale — run 'ctxkit map' and commit it"; exit 1; }
