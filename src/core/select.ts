@@ -12,6 +12,7 @@ import { extname } from "node:path";
 import type { CtxConfig } from "./config.js";
 import { walkFiles } from "./fs.js";
 import { SOURCE_EXTENSIONS } from "../adapters/symbols.js";
+import { diffSelection } from "../select/diff.js";
 
 export interface SelectOptions {
   /** Module name from context.config.yaml. */
@@ -51,7 +52,7 @@ export function allSourceFiles(config: CtxConfig): string[] {
 
 export function select(config: CtxConfig, opts: SelectOptions = {}): Selection {
   if (opts.diff !== undefined) {
-    throw new Error("pack --diff is planned for 0.4.0 (docs/plan-v2.md §4.5)");
+    return diffSelection(config, opts.diff);
   }
   const files = opts.module ? moduleFiles(config, opts.module) : allSourceFiles(config);
   return { files, seeds: [], label: opts.module ?? "all" };

@@ -48,7 +48,15 @@ function agentsSummary(agents: string, maxLines = 40): string {
   return agents.split("\n").slice(0, maxLines).join("\n");
 }
 
-function targetFiles(config: CtxConfig, opts: PackOptions): string[] {
+function fileBlock(config: CtxConfig, rel: string): string | null {
+  const text = readText(config.root, rel);
+  if (text === null) return null;
+  const lang = LANG_BY_EXT[extname(rel)] ?? "";
+  return `### ${rel}\n\n\`\`\`${lang}\n${text.trimEnd()}\n\`\`\`\n\n`;
+}
+
+/** Target files in pack order, plus how many of the front are seeds (plan §4.5). */
+function targetFiles(config: CtxConfig, opts: PackOptions): { files: string[]; seedCount: number } {
   const selection = select(config, {
     module: opts.module,
     about: opts.about,
@@ -57,7 +65,8 @@ function targetFiles(config: CtxConfig, opts: PackOptions): string[] {
   // Budget cuts drop the tail, so order by importance, not alphabet.
   const ranked = rankFiles(config, { files: selection.files }).map((e) => e.rel);
   // Seeds must survive the budget, so they lead.
-  return [...selection.seeds, ...ranked.filter((r) => !selection.seeds.includes(r))];
+  const files = [...selection.seeds, ...ranked.filter((r) => !selection.seeds.includes(r))];
+  return { files, seedCount: selection.seeds.length };
 }
 
 export function buildPack(config: CtxConfig, opts: PackOptions): PackResult {
@@ -134,12 +143,51 @@ export function buildPack(config: CtxConfig, opts: PackOptions): PackResult {
       case "target-files": {
         out += `## Target Files\n\n`;
         const reserve = tailReminder ? approxTokens(tailReminder) + 50 : 0;
+        const { files, seedCount } = targetFiles(config, opts);
+        const seeds = files.slice(0, seedCount);
+        const expansion = files.slice(seedCount);
         let omitted = 0;
-        for (const rel of targetFiles(config, opts)) {
-          const text = readText(config.root, rel);
-          if (text === null) continue;
-          const lang = LANG_BY_EXT[extname(rel)] ?? "";
-          const block = `### ${rel}\n\n\`\`\`${lang}\n${text.trimEnd()}\n\`\`\`\n\n`;
+
+        if (opts.diff !== undefined) {
+          out +=
+            `_Diff range: \`${opts.diff}\`. Seeds (${seedCount} changed file${seedCount === 1 ? "" : "s"}): ` +
+            (seeds.length > 0 ? seeds.map((s) => `\`${s}\``).join(", ") : "(none — no changed source files)") +
+            `_\n\n`;
+        }
+
+        // Seeds must survive the budget (plan §4.5): a review pack missing
+        // the changed files is worthless. Compute their combined cost up
+        // front — the plain skip-if-oversized loop below (used for the
+        // expansion files) would otherwise drop an oversized seed just like
+        // any other file.
+        const seedBlocks = seeds
+          .map((rel) => ({ rel, block: fileBlock(config, rel) }))
+          .filter((b): b is { rel: string; block: string } => b.block !== null);
+        const seedTokens = approxTokens(seedBlocks.map((b) => b.block).join(""));
+
+        if (seedBlocks.length > 0 && approxTokens(out) + seedTokens + reserve > budget) {
+          // Degraded mode: the changed files alone don't fit. List every
+          // seed path so none goes missing from the pack silently, then
+          // spend the remaining budget on the single most central seed.
+          out +=
+            `_⚠ the ${seedBlocks.length} changed file(s) exceed the ${budget}-token budget on their ` +
+            `own. Listing all seed paths; including full contents for the top-ranked one only._\n\n` +
+            seeds.map((rel) => `- ${rel}`).join("\n") +
+            `\n\n`;
+          const top = seedBlocks[0];
+          if (approxTokens(out + top.block) + reserve <= budget) {
+            out += top.block;
+            omitted += seedBlocks.length - 1;
+          } else {
+            omitted += seedBlocks.length;
+          }
+        } else {
+          for (const { block } of seedBlocks) out += block;
+        }
+
+        for (const rel of expansion) {
+          const block = fileBlock(config, rel);
+          if (block === null) continue;
           // Skip rather than stop: one oversized file in the middle of the
           // ranking must not forfeit the remaining budget for the smaller,
           // still-relevant files behind it.
