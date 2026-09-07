@@ -63,6 +63,16 @@ test("symbols: extracts python and typescript definitions", () => {
     "export class Svc {}\nexport function go(a: number) {}\nexport const fn = (x) => x\n",
   );
   assert.deepEqual(ts.map((s) => s.name), ["Svc", "go", "fn"]);
+
+  // Type annotations must not hide a definition: typed exported consts are
+  // ubiquitous in TypeScript and carry cross-file references.
+  const typed = extractSymbols(
+    "b.ts",
+    "export const handler: Handler = (x) => x\nexport const VERSION: string = read()\nconst local = 1\n",
+  );
+  assert.deepEqual(typed.map((s) => s.name), ["handler", "VERSION"]);
+  assert.equal(typed[0].kind, "function");
+  assert.equal(typed[1].kind, "const");
 });
 
 test("repomap: referenced files outrank, test files are demoted", () => {

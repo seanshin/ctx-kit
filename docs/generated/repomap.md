@@ -1,11 +1,16 @@
-<!-- ctxkit:v1 repomap generated=2026-09-07T06:31:44.363Z budget=8000 -->
+<!-- ctxkit:v1 repomap generated=2026-09-07T07:27:15.237Z budget=8000 -->
 # Repository Map
 
 Files: 19 source files scanned. Ranked by cross-file references.
 
 ## src/core/config.ts
+- L5 const `CONFIG_FILE`
+- L6 const `SCHEMA_VERSION`
+- L7 const `GENERATED_DIR`
 - L9 interface `ProfileConfig`
 - L16 interface `CtxConfig`
+- L28 const `DEFAULT_PROFILES`
+- L34 const `BUILTIN_IGNORE_DIRS`
 - L50 function `findConfig(startDir: string)`
 - L61 function `loadConfig(rootDir: string)`
 
@@ -14,6 +19,12 @@ Files: 19 source files scanned. Ranked by cross-file references.
 - L15 function `walkFiles(root: string, opts: WalkOptions = {})`
 - L25 function `visit`
 - L57 function `readText(root: string, rel: string)`
+
+## src/adapters/symbols.ts
+- L10 interface `CodeSymbol`
+- L17 const `SOURCE_EXTENSIONS`
+- L23 interface `Rule`
+- L84 function `extractSymbols(relPath: string, content: string)`
 
 ## src/mcp.ts
 - L20 function `text(s: string)`
@@ -36,6 +47,7 @@ Files: 19 source files scanned. Ranked by cross-file references.
 - L80 function `answer`
 
 ## src/core/sync.ts
+- L20 const `SYNC_TARGETS`
 - L32 function `expectedContent(agents: string)`
 - L36 interface `SyncAction`
 - L42 interface `SyncOptions`
@@ -53,11 +65,6 @@ Files: 19 source files scanned. Ranked by cross-file references.
 - L47 function `moduleFiles(config: CtxConfig, moduleName: string)`
 - L56 function `targetFiles(config: CtxConfig, moduleName?: string)`
 - L66 function `buildPack(config: CtxConfig, opts: PackOptions)`
-
-## src/adapters/symbols.ts
-- L10 interface `CodeSymbol`
-- L23 interface `Rule`
-- L79 function `extractSymbols(relPath: string, content: string)`
 
 ## src/core/detect.ts
 - L13 interface `Detected`
@@ -77,6 +84,9 @@ Files: 19 source files scanned. Ranked by cross-file references.
 - L28 function `splitSections(source: string, text: string)`
 - L40 function `countMatches(haystack: string, needle: string)`
 - L52 function `getContext(config: CtxConfig, query: string, opts: GetOptions = {})`
+
+## src/core/version.ts
+- L4 function `VERSION`
 
 ## src/core/check.ts
 - L15 interface `CheckResult`
@@ -103,8 +113,5 @@ Files: 19 source files scanned. Ranked by cross-file references.
 - (no extractable symbols)
 
 ## src/adapters/serena.ts
-- (no extractable symbols)
-
-## src/core/version.ts
 - (no extractable symbols)
 

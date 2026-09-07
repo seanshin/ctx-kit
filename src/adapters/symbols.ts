@@ -30,7 +30,12 @@ const JS_RULES: Rule[] = [
   { re: /^\s*(?:export\s+)?(?:abstract\s+)?class\s+([A-Za-z_$][\w$]*)/, kind: "class" },
   { re: /^\s*(?:export\s+)?interface\s+([A-Za-z_$][\w$]*)/, kind: "interface" },
   { re: /^\s*(?:export\s+)?type\s+([A-Za-z_$][\w$]*)\s*=/, kind: "type" },
-  { re: /^\s*(?:export\s+)?const\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?\(/, kind: "function" },
+  // A type annotation may sit between the name and `=`, so `const fn: T = (`
+  // must match as surely as `const fn = (`.
+  { re: /^\s*(?:export\s+)?const\s+([A-Za-z_$][\w$]*)\s*(?::[^=]+)?=\s*(?:async\s*)?\(/, kind: "function" },
+  // Exported constants are referenced across files and so carry ranking
+  // weight; unexported ones are local noise and stay out.
+  { re: /^\s*export\s+const\s+([A-Za-z_$][\w$]*)\s*(?::[^=]+)?=/, kind: "const" },
 ];
 
 const PY_RULES: Rule[] = [

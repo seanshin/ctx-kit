@@ -1,6 +1,6 @@
 {
   "name": "@seanshin/ctx-kit",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Tool-neutral codebase context kit for AI coding agents (frontier to local LLMs): rules sync, ranked repo maps, profile-aware context packs, MCP server",
   "keywords": [
     "ai",
