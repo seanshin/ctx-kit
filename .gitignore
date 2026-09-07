@@ -1,0 +1,7 @@
+node_modules/
+dist/
+*.log
+
+# private-repo eval artifacts (kept local only)
+eval/twin-tasks.yaml
+eval/results-twin.md

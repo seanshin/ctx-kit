@@ -1,0 +1,28 @@
+# ctxkit configuration (schema v1)
+# The only ctxkit file that lives in a target repository — all logic stays
+# in the ctxkit package.
+version: 1
+
+# Tier 2 module boundaries: module name -> glob patterns (relative to root).
+# Used by `ctxkit pack --module <name>` and docs/context/<name>.md.
+modules: {}
+#  auth:
+#    - "src/auth/**"
+#  billing:
+#    - "src/billing/**"
+
+# Extra exclude globs. .git, node_modules, dist, build, venv etc. are
+# always ignored.
+exclude: []
+
+# Consumption profiles by model capability. These defaults exist even if
+# omitted; override or add your own.
+# inject sections: agents | agents-summary | repomap | target-files
+profiles:
+  frontier: { inject: [agents], budget: 4000 }
+  mid:      { inject: [agents, repomap], budget: 24000 }
+  light:    { inject: [agents-summary, repomap, target-files], budget: 12000 }
+
+# Rule distribution targets for `ctxkit sync` (P1b).
+sync:
+  targets: [claude, cursor]

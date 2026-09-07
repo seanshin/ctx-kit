@@ -1,0 +1,10 @@
+#!/bin/sh
+# ctxkit pre-commit gate — runs the same checks as CI, locally and free
+# (no GitHub Actions minutes). Installed by `ctxkit init --hooks`.
+if command -v ctxkit >/dev/null 2>&1; then
+  exec ctxkit check
+fi
+npx --no-install @seanshin/ctx-kit check || {
+  echo "ctxkit check failed, or ctx-kit is not installed in this repo (npm i -D @seanshin/ctx-kit)." >&2
+  exit 1
+}

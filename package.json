@@ -1,0 +1,55 @@
+{
+  "name": "@seanshin/ctx-kit",
+  "version": "0.2.0",
+  "description": "Tool-neutral codebase context kit for AI coding agents (frontier to local LLMs): rules sync, ranked repo maps, profile-aware context packs, MCP server",
+  "keywords": [
+    "ai",
+    "llm",
+    "context",
+    "agents",
+    "agents-md",
+    "mcp",
+    "repomap",
+    "claude",
+    "codex"
+  ],
+  "author": "Hyounmouk Shin <supims@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/seanshin/ctx-kit.git"
+  },
+  "homepage": "https://github.com/seanshin/ctx-kit#readme",
+  "bugs": {
+    "url": "https://github.com/seanshin/ctx-kit/issues"
+  },
+  "type": "module",
+  "bin": {
+    "ctxkit": "dist/cli.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "dist",
+    "templates"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "npm run build && node --test",
+    "prepublishOnly": "npm test"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "commander": "^12.1.0",
+    "picomatch": "^4.0.2",
+    "yaml": "^2.6.0",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/picomatch": "^3.0.1",
+    "typescript": "^5.7.0"
+  }
+}

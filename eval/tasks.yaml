@@ -1,0 +1,18 @@
+# P4 evaluation tasks against eval/fixture.
+# Each task is answerable ONLY from the supplied context (the model never
+# sees the repo). `expect` = pass if ANY listed string appears in the answer.
+#
+# Task design: q1 is answerable from the repomap alone (structure);
+# q2/q3 require file contents (implementation detail, call graph) — they
+# discriminate between the `mid` profile (rules+repomap) and the `light`
+# profile (rules+repomap+target files).
+tasks:
+  - id: q1-structure
+    question: "Which file defines the apply_discount function? Answer with the file path only."
+    expect: ["discount.py"]
+  - id: q2-detail
+    question: "What multiplier is applied to the total for a gold tier user? Answer with the number only."
+    expect: ["0.8", "80%"]
+  - id: q3-callgraph
+    question: "Inside place_order, which function is called to compute the pre-discount total? Answer with the function name only."
+    expect: ["calc_total"]

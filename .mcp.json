@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "ctxkit": {
+      "command": "node",
+      "args": ["dist/cli.js", "serve"]
+    }
+  }
+}

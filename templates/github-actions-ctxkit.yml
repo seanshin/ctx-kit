@@ -1,0 +1,25 @@
+# ctxkit CI gate: regenerate the repomap and verify rules stay healthy.
+# Copied by `ctxkit init --ci` into .github/workflows/ctxkit.yml.
+#
+# NOTE on cost: GitHub Actions is free for public repos, but private repos
+# consume the account's Actions minutes (paid beyond the free tier). To
+# keep GitHub paid features at zero, skip --ci and use the local hook
+# instead: `ctxkit init --hooks` runs the same `ctxkit check` at commit
+# time for free.
+name: ctxkit
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  context:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Regenerate repository map
+        run: npx -y @seanshin/ctx-kit map
+      - name: Check rules, sync targets and secrets
+        run: npx -y @seanshin/ctx-kit check
